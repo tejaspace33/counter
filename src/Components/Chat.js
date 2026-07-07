@@ -117,12 +117,43 @@ function Chat({ onLogout }) {
     };
 
     if (file) {
-      // convert file to data URL so it can be persisted in localStorage
+      // convert file to data URL and compress if it's an image
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result;
-        const filePayload = { name: file.name, type: file.type, dataUrl };
-        pushMessage(filePayload);
+        
+        // If it's an image, compress it before sending
+        if (file.type.startsWith('image/')) {
+          const img = new Image();
+          img.onload = () => {
+            // Create canvas and compress
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // Limit max dimensions
+            const maxDim = 1200;
+            if (width > maxDim || height > maxDim) {
+              const ratio = Math.min(maxDim / width, maxDim / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Compress to JPEG with quality 0.8
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            const filePayload = { name: file.name, type: 'image/jpeg', dataUrl: compressedDataUrl };
+            pushMessage(filePayload);
+          };
+          img.src = dataUrl;
+        } else {
+          const filePayload = { name: file.name, type: file.type, dataUrl };
+          pushMessage(filePayload);
+        }
       };
       reader.readAsDataURL(file);
     } else {
@@ -162,39 +193,44 @@ function Chat({ onLogout }) {
   }, [modalImage]);
 
   return (
-    <div className="max-w-3xl mx-auto card-bg p-6 rounded-2xl">
-      <header className="flex items-center justify-between mb-4">
+    <div className="max-w-3xl mx-auto card-bg p-3 md:p-6 rounded-2xl h-screen md:h-auto md:max-h-screen overflow-hidden md:overflow-visible flex flex-col">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
         <div className="flex items-center gap-3">
           <FiUser className="w-7 h-7 text-ig-purple" />
           <div>
             <h1 className="text-2xl font-bold text-ig-purple">Chat</h1>
-            <div className="text-sm text-gray-600">Logged in as <span className="font-semibold">{currentUser?.name}</span></div>
+            <div className="text-sm text-gray-600">Logged in as <span className="font-semibold truncate">{currentUser?.name}</span></div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleClearRoom} disabled={clearing} className="px-3 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button onClick={handleClearRoom} disabled={clearing} className="flex-1 md:flex-none px-3 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm md:text-base">
             Clear Chat
           </button>
-          <button onClick={() => { dispatch(leaveRoom()); onLogout(); }} className="px-3 py-2 rounded-lg border flex items-center gap-2"><FiLogOut /> Logout</button>
+          <button onClick={() => { dispatch(leaveRoom()); onLogout(); }} className="flex-1 md:flex-none px-3 py-2 rounded-lg border flex items-center justify-center gap-2 text-sm md:text-base"><FiLogOut /> Logout</button>
         </div>
       </header>
 
-      <div className="h-80 overflow-y-auto bg-white p-4 rounded-lg shadow-sm mb-4">
+      <div className="flex-1 overflow-y-auto bg-white p-3 md:p-4 rounded-lg shadow-sm mb-4 min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-gray-600">Start the conversation by sending a message.</div>
         ) : (
           messages.map((message) => {
             const isMe = message.senderName === currentUser?.name;
             return (
-              <div key={message.id} className={`mb-3 max-w-[78%] p-3 rounded-2xl ${isMe ? 'ml-auto bg-gradient-to-r from-ig-purple to-ig-pink text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
-                <div className="font-semibold text-sm">{message.senderName}</div>
-                {message.text ? <div className="mt-1">{message.text}</div> : null}
+              <div key={message.id} className={`mb-3 max-w-[85%] md:max-w-[78%] p-2 md:p-3 rounded-2xl text-sm md:text-base ${isMe ? 'ml-auto bg-gradient-to-r from-ig-purple to-ig-pink text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
+                <div className="font-semibold text-xs md:text-sm">{message.senderName}</div>
+                {message.text ? <div className="mt-1 break-words">{message.text}</div> : null}
                 {message.file ? (
                   <div className="mt-2">
                     {message.file.type && message.file.type.startsWith('image/') ? (
-                      <img src={message.file.dataUrl} alt={message.file.name} className="max-w-xs rounded-md cursor-pointer" onClick={() => openImage(message.file)} />
+                      <img 
+                        src={message.file.dataUrl} 
+                        alt={message.file.name} 
+                        className="max-w-sm md:max-w-md rounded-md cursor-pointer object-contain max-h-64 w-auto shadow-sm" 
+                        onClick={() => openImage(message.file)} 
+                      />
                     ) : (
-                      <a href={message.file.dataUrl} download={message.file.name} className="text-blue-600">Download: {message.file.name}</a>
+                      <a href={message.file.dataUrl} download={message.file.name} className="text-blue-600 underline break-all">Download: {message.file.name}</a>
                     )}
                   </div>
                 ) : null}
@@ -207,16 +243,16 @@ function Chat({ onLogout }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3 relative">
-          <label className="flex items-center gap-2 cursor-pointer text-gray-600">
-            <FiImage className="w-5 h-5" />
-            <input id="file-input" ref={fileInputRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <div className="flex items-center gap-2 md:gap-3 relative flex-wrap md:flex-nowrap">
+          <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-gray-800">
+            <FiImage className="w-5 h-5 flex-shrink-0" />
+            <input id="file-input" ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           </label>
-          <button type="button" onClick={toggleEmojiPicker} className="flex items-center justify-center w-10 h-10 rounded-xl border bg-white text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={toggleEmojiPicker} className="flex items-center justify-center w-10 h-10 rounded-xl border bg-white text-gray-600 hover:bg-gray-100 flex-shrink-0">
             <FiSmile className="w-5 h-5" />
           </button>
           {showEmojiPicker ? (
-            <div className="absolute left-0 top-14 z-10 w-64 rounded-xl bg-white shadow-lg border p-3 grid grid-cols-5 gap-2">
+            <div className="absolute left-0 top-14 z-10 w-64 rounded-xl bg-white shadow-lg border p-3 grid grid-cols-5 gap-2 md:left-auto">
               {EMOJIS.map((emoji) => (
                 <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="text-2xl leading-none hover:bg-gray-100 rounded-lg p-1">
                   {emoji}
@@ -224,10 +260,10 @@ function Chat({ onLogout }) {
               ))}
             </div>
           ) : null}
-          <div className="flex-1">
-            <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type your message..." className="w-full p-3 rounded-xl border" rows={2} />
+          <div className="flex-1 min-w-0">
+            <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type your message..." className="w-full p-2 md:p-3 rounded-xl border text-sm md:text-base" rows={2} />
           </div>
-          <button onClick={handleSend} className="px-4 py-3 bg-ig-purple text-white rounded-xl flex items-center gap-2"><FiSend /> Send</button>
+          <button onClick={handleSend} className="px-3 md:px-4 py-2 md:py-3 bg-ig-purple text-white rounded-xl flex items-center justify-center gap-1 md:gap-2 text-sm md:text-base flex-shrink-0"><FiSend className="w-4 h-4 md:w-5 md:h-5" /> <span className="hidden md:inline">Send</span></button>
         </div>
         {file && (
           <div className="flex items-center justify-between bg-white p-2 rounded-lg border">
@@ -238,13 +274,21 @@ function Chat({ onLogout }) {
       </div>
 
       {modalImage ? (
-        <div className="image-modal" onClick={closeModal}>
-          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
-            <img src={modalImage} alt="preview" style={{ transform: `scale(${modalScale})` }} />
-            <div className="mt-2 text-center">
-              <button onClick={() => setModalScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))} className="px-3 py-1 border rounded-md mr-2">-</button>
-              <button onClick={() => setModalScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))} className="px-3 py-1 border rounded-md">+</button>
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onClick={closeModal}>
+          <div className="bg-white rounded-lg p-4 max-w-2xl w-full max-h-96 md:max-h-[600px] flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={modalImage} 
+              alt="preview" 
+              className="max-w-full max-h-80 md:max-h-[500px] object-contain rounded-md" 
+              style={{ transform: `scale(${modalScale})` }} 
+            />
+            <div className="mt-4 flex gap-2 flex-wrap justify-center">
+              <button onClick={() => setModalScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))} className="px-4 py-2 border rounded-md bg-gray-100 hover:bg-gray-200 text-sm">−</button>
+              <span className="px-4 py-2 text-sm text-gray-600">{Math.round(modalScale * 100)}%</span>
+              <button onClick={() => setModalScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))} className="px-4 py-2 border rounded-md bg-gray-100 hover:bg-gray-200 text-sm">+</button>
+              <button onClick={closeModal} className="px-4 py-2 border rounded-md bg-red-100 hover:bg-red-200 text-sm">Close</button>
             </div>
+            <div className="mt-2 text-xs text-gray-500 text-center">Use +/− keys or buttons to zoom • ESC to close</div>
           </div>
         </div>
       ) : null}
