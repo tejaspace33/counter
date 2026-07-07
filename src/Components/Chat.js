@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { sendMessage, leaveRoom, setMessages } from '../store/chatSlice';
-import { FiSend, FiImage, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiSend, FiImage, FiLogOut, FiUser, FiSmile } from 'react-icons/fi';
 import { io } from 'socket.io-client';
 
 function Chat({ onLogout }) {
@@ -15,7 +15,19 @@ function Chat({ onLogout }) {
   const [modalImage, setModalImage] = useState(null);
   const [modalScale, setModalScale] = useState(1);
   const [clearing, setClearing] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const socketRef = useRef(null);
+
+  const EMOJIS = ['😀', '😂', '😍', '😎', '🙌', '👍', '🎉', '✨', '🔥', '🥳', '💬', '❤️', '🙈', '🤖', '🫶'];
+
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker((current) => !current);
+  };
+
+  const addEmoji = (emoji) => {
+    setText((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -195,11 +207,23 @@ function Chat({ onLogout }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           <label className="flex items-center gap-2 cursor-pointer text-gray-600">
             <FiImage className="w-5 h-5" />
             <input id="file-input" ref={fileInputRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           </label>
+          <button type="button" onClick={toggleEmojiPicker} className="flex items-center justify-center w-10 h-10 rounded-xl border bg-white text-gray-600 hover:bg-gray-100">
+            <FiSmile className="w-5 h-5" />
+          </button>
+          {showEmojiPicker ? (
+            <div className="absolute left-0 top-14 z-10 w-64 rounded-xl bg-white shadow-lg border p-3 grid grid-cols-5 gap-2">
+              {EMOJIS.map((emoji) => (
+                <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="text-2xl leading-none hover:bg-gray-100 rounded-lg p-1">
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="flex-1">
             <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type your message..." className="w-full p-3 rounded-xl border" rows={2} />
           </div>
