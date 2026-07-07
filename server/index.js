@@ -63,6 +63,15 @@ const normalizeMessage = (row) => {
       console.warn('Failed to parse file JSON from DB row', err && err.message);
     }
   }
+  
+  // ensure file has expected shape if it exists
+  if (file && typeof file === 'object') {
+    file = {
+      name: file.name || 'file',
+      type: file.type || 'application/octet-stream',
+      dataUrl: file.dataUrl || null,
+    };
+  }
 
   return {
     id: row.id,
