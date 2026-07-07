@@ -49,13 +49,29 @@ const initDb = async () => {
   console.log('PostgreSQL schema initialized');
 };
 
-const normalizeMessage = (row) => ({
-  id: row.id,
-  senderName: row.sendername,
-  text: row.text,
-  file: row.file || null,
-  time: row.time
-});
+const normalizeMessage = (row) => {
+  // ensure senderName is present regardless of column casing
+  const senderName = row.sendername || row.senderName || 'Unknown';
+
+  // file may be returned as an object or a JSON string depending on how it was stored
+  let file = row.file || null;
+  if (file && typeof file === 'string') {
+    try {
+      file = JSON.parse(file);
+    } catch (err) {
+      // leave as string if parsing fails
+      console.warn('Failed to parse file JSON from DB row', err && err.message);
+    }
+  }
+
+  return {
+    id: row.id,
+    senderName,
+    text: row.text,
+    file,
+    time: row.time,
+  };
+};
 
 app.use(express.json());
 
@@ -90,10 +106,15 @@ io.on('connection', (socket) => {
     if (!room || !message) return;
 
     try {
+      // Ensure file is stored as JSON in the JSONB column. stringify if needed.
+      const fileParam = message.file ? JSON.stringify(message.file) : null;
       await pool.query(
         `INSERT INTO messages (room, senderName, text, file, time) VALUES ($1, $2, $3, $4, $5)`,
-        [room, message.senderName, message.text, message.file || null, message.time]
+        [room, message.senderName, message.text, fileParam, message.time]
       );
+
+      // Emit the message back to clients. Keep the original message object
+      // (which includes the file as an object) so clients can render immediately.
       io.to(room).emit('message', message);
     } catch (err) {
       console.error('Error inserting message:', err);
