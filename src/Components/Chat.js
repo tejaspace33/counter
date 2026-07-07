@@ -14,6 +14,7 @@ function Chat({ onLogout }) {
   const fileInputRef = useRef(null);
   const [modalImage, setModalImage] = useState(null);
   const [modalScale, setModalScale] = useState(1);
+  const [clearing, setClearing] = useState(false);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -39,6 +40,10 @@ function Chat({ onLogout }) {
       dispatch(sendMessage(message));
     });
 
+    socket.on('clearRoom', () => {
+      dispatch(setMessages([]));
+    });
+
     return () => {
       if (socketRef.current) {
         socketRef.current.emit('leave', currentUser.roomId);
@@ -47,6 +52,31 @@ function Chat({ onLogout }) {
       }
     };
   }, [currentUser, dispatch]);
+
+  const handleClearRoom = async () => {
+    if (!currentUser?.roomId) return;
+    if (!window.confirm('Clear this room for everyone? This will delete the stored chat history.')) return;
+
+    setClearing(true);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001'}/clear-room`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room: currentUser.roomId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to clear room');
+      }
+
+      dispatch(setMessages([]));
+    } catch (error) {
+      console.error('Clear room failed:', error);
+      alert('Could not clear room. Please try again.');
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -130,6 +160,9 @@ function Chat({ onLogout }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleClearRoom} disabled={clearing} className="px-3 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+            Clear Chat
+          </button>
           <button onClick={() => { dispatch(leaveRoom()); onLogout(); }} className="px-3 py-2 rounded-lg border flex items-center gap-2"><FiLogOut /> Logout</button>
         </div>
       </header>
