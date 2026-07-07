@@ -34,7 +34,7 @@ function App() {
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, [currentUser]);
+  }, [currentUser, dispatch]);
 
   // Step 1: user enters room id and clicks Join
   const handleJoin = () => {

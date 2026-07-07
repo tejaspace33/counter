@@ -119,7 +119,6 @@ function Chat({ onLogout }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [modalImage]);
 
-  const otherUser = currentUser?.roomId ? 'Friend' : 'Friend';
   return (
     <div className="max-w-3xl mx-auto card-bg p-6 rounded-2xl">
       <header className="flex items-center justify-between mb-4">
