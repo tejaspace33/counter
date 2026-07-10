@@ -1,140 +1,334 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { joinRoom, leaveRoom, setMessages } from './store/chatSlice';
-import Chat from './Components/Chat';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  joinRoom,
+  leaveRoom,
+  setMessages,
+} from "./store/chatSlice";
+
+import Chat from "./Components/Chat";
 
 function App() {
   const dispatch = useDispatch();
-  const currentUser = useSelector((s) => s.chat.currentUser);
-  const messages = useSelector((s) => s.chat.messages);
-  const [roomId, setRoomId] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: enter room id, 2: enter name
 
-  // persist messages for the current room
+  const currentUser = useSelector(
+    (state) => state.chat.currentUser
+  );
+
+  const messages = useSelector(
+    (state) => state.chat.messages
+  );
+
+  const [roomId, setRoomId] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState("");
+  const [step, setStep] = useState(1);
+
+  /* ------------------------------
+     Save room messages
+  ------------------------------ */
+
   useEffect(() => {
     if (!currentUser) return;
-    const key = `chatRoom:${currentUser.roomId}`;
-    localStorage.setItem(key, JSON.stringify(messages));
+
+    localStorage.setItem(
+      `chatRoom:${currentUser.roomId}`,
+      JSON.stringify(messages)
+    );
   }, [messages, currentUser]);
 
-  // listen for updates to this room from other tabs/windows
+  /* ------------------------------
+     Listen for storage changes
+  ------------------------------ */
+
   useEffect(() => {
     if (!currentUser) return;
-    const key = `chatRoom:${currentUser.roomId}`;
-    const handler = (e) => {
-      if (e.key !== key) return;
+
+    const roomKey = `chatRoom:${currentUser.roomId}`;
+
+    const handleStorage = (event) => {
+      if (event.key !== roomKey) return;
+
       try {
-        const newMsgs = JSON.parse(e.newValue || '[]');
-        dispatch(setMessages(newMsgs));
-      } catch (err) {
-        console.warn('Failed to parse storage event for', key, err);
+        const updatedMessages = JSON.parse(
+          event.newValue || "[]"
+        );
+
+        dispatch(setMessages(updatedMessages));
+      } catch (error) {
+        console.error(error);
       }
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () =>
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
   }, [currentUser, dispatch]);
 
-  // Step 1: user enters room id and clicks Join
+  /* ------------------------------
+     Step 1
+  ------------------------------ */
+
   const handleJoin = () => {
     const id = roomId.trim();
+
     if (!id) {
-      setError('Please enter a room id (key).');
+      setError("Please enter a Room ID.");
       return;
     }
-    setError('');
+
+    setError("");
     setStep(2);
   };
 
-  // Step 2: user enters display name and enters the room
+  /* ------------------------------
+     Step 2
+  ------------------------------ */
+
   const handleEnterRoom = () => {
     const id = roomId.trim();
     const name = displayName.trim();
+
     if (!id) {
-      setError('Room id missing.');
+      setError("Room ID missing.");
       setStep(1);
       return;
     }
+
     if (!name) {
-      setError('Please enter your display name.');
+      setError("Please enter your name.");
       return;
     }
-    dispatch(joinRoom({ roomId: id, name }));
-    setError('');
+
+    dispatch(
+      joinRoom({
+        roomId: id,
+        name,
+      })
+    );
+
+    setError("");
   };
+
+  /* ------------------------------
+     Logout
+  ------------------------------ */
 
   const handleLogout = () => {
     dispatch(leaveRoom());
-    setRoomId('');
-    setDisplayName('');
+
+    setRoomId("");
+    setDisplayName("");
+    setError("");
     setStep(1);
+
+    localStorage.removeItem("chatUser");
+    localStorage.removeItem("lastMessageTime");
   };
 
-  return (
-    <div className="Container mt-12">
-      {currentUser ? (
-        <Chat onLogout={handleLogout} />
-      ) : (
-        <div className="App ChatApp max-w-3xl mx-auto card-bg p-6 rounded-2xl">
-          <header>
-            <h1 className="text-3xl font-extrabold text-ig-purple">lets chat</h1>
-          </header>
-          <div className="hero-panel p-6 rounded-xl mb-6 card-bg">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-ig-purple font-semibold">Private two-person rooms</p>
-              <p className="mt-2 text-sm text-gray-700">Create or join a secure room with a shared key, then chat instantly with another person. Messages and attachments stay in your browser while the room is active.</p>
-            </div>
+  /* ------------------------------
+     Generate Room ID
+  ------------------------------ */
+
+  const generateRoomId = () => {
+    const id = Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase();
+
+    setRoomId(id);
+    setError("");
+  };
+
+ return ( 
+  <div className="min-h-screen bg-gradient-to-br from-violet-100 via-white to-pink-100 flex items-center justify-center p-4 sm:p-6">
+
+    {currentUser ? (
+
+      <Chat onLogout={handleLogout} />
+
+    ) : (
+
+      <div className="w-full max-w-md lg:max-w-lg bg-white rounded-3xl shadow-2xl border border-violet-100 overflow-hidden">
+
+        {/* Header */}
+
+        <div className="bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white px-8 py-10 text-center">
+
+          <div className="text-5xl mb-3">
+            💬
           </div>
-          <div className="login-box card-bg p-6 rounded-xl">
-            {step === 1 ? (
-              // Step 1: enter room id only
-              <>
-                <label className="block text-sm font-medium text-gray-700 text-left mb-1" htmlFor="room-id">Room id (key)</label>
+
+          <h1 className="text-4xl font-bold">
+            Let's Chat
+          </h1>
+
+          <p className="mt-3 text-violet-100 text-sm sm:text-base">
+            Secure private chat rooms for two people.
+          </p>
+
+        </div>
+
+        {/* Body */}
+
+        <div className="p-6 sm:p-8">
+
+          {step === 1 ? (
+
+            <>
+
+              <div className="mb-6">
+
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+
+                  Room ID
+
+                </label>
+
                 <input
-                  id="room-id"
                   type="text"
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
-                  placeholder="Enter room id"
-                  className="w-full px-4 py-3 rounded-xl border"
+                  placeholder="Enter room ID"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-violet-500 outline-none"
                 />
 
-                <div className="mt-4 flex gap-3">
-                  <button onClick={handleJoin} className="px-5 py-3 rounded-xl bg-ig-purple text-white font-bold">Join Room</button>
-                  <button onClick={() => { setRoomId(Math.random().toString(36).slice(2,8)); setError(''); }} className="px-4 py-3 rounded-xl border">Generate</button>
-                </div>
-                {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
-                <div className="text-sm text-gray-600 mt-2 text-left">Enter a room id to join or create a room.</div>
-              </>
-            ) : (
-              // Step 2: enter display name and confirm room
-              <>
-                <div className="text-left mb-3">
-                  <h2 className="text-xl font-bold">Enter your name</h2>
-                  <div className="text-sm text-gray-600 mt-1">Room: <span className="font-semibold">{roomId}</span></div>
-                </div>
-                <label className="block text-sm font-medium text-gray-700 text-left mb-1" htmlFor="display-name">Display name</label>
-                <input
-                  id="display-name"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-3 rounded-xl border"
-                />
-                <div className="mt-4 flex gap-3">
-                  <button onClick={handleEnterRoom} className="px-5 py-3 rounded-xl bg-ig-purple text-white font-bold">Enter Room</button>
-                  <button onClick={() => { setStep(1); setError(''); }} className="px-4 py-3 rounded-xl border">Back</button>
-                </div>
-                {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
-              </>
-            )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+
+                <button
+                  onClick={handleJoin}
+                  className="rounded-2xl bg-violet-600 hover:bg-violet-700 text-white py-3 font-semibold transition"
+                >
+                  Join Room
+                </button>
+
+                <button
+                  onClick={generateRoomId}
+                  className="rounded-2xl border border-violet-200 hover:bg-violet-50 py-3 font-semibold transition"
+                >
+                  Generate
+                </button>
+
+              </div>
+
+            </>
+
+          ) : (
+
+            <>
+
+              <div className="mb-6">
+
+                <h2 className="text-2xl font-bold text-gray-800">
+
+                  Welcome 👋
+
+                </h2>
+
+                <p className="text-gray-500 mt-2">
+
+                  Room
+
+                  <span className="font-semibold text-violet-600 ml-2">
+
+                    {roomId}
+
+                  </span>
+
+                </p>
+
+              </div>
+
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+
+                Display Name
+
+              </label>
+
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your name"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-violet-500 outline-none"
+              />
+
+              <div className="grid grid-cols-2 gap-3 mt-6">
+
+                <button
+                  onClick={handleEnterRoom}
+                  className="rounded-2xl bg-violet-600 hover:bg-violet-700 text-white py-3 font-semibold transition"
+                >
+                  Enter Chat
+                </button>
+
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setError("");
+                  }}
+                  className="rounded-2xl border border-gray-300 hover:bg-gray-100 py-3 font-semibold transition"
+                >
+                  Back
+                </button>
+
+              </div>
+
+            </>
+
+          )}
+
+          {error && (
+
+            <div className="mt-5 rounded-xl bg-red-50 border border-red-200 text-red-600 px-4 py-3 text-sm">
+
+              {error}
+
+            </div>
+
+          )}
+
+          <div className="mt-8 border-t pt-5">
+
+            <h3 className="font-semibold text-gray-800 mb-3">
+
+              Features
+
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+
+              <div>🔒 Private Rooms</div>
+
+              <div>⚡ Real-Time Chat</div>
+
+              <div>🖼 Image Sharing</div>
+
+              <div>😀 Emoji Support</div>
+
+              <div>🧹 Clear Chat</div>
+
+              <div>⏱ Auto Logout</div>
+
+            </div>
+
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-export default App;
+        </div>
+
+      </div>
+
+    )}
+
+  </div>
+);
+}

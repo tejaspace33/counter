@@ -45,7 +45,12 @@ const initDb = async () => {
       time TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
+      
   `);
+  await pool.query(`
+ALTER TABLE messages
+ADD COLUMN IF NOT EXISTS message_id TEXT;
+`);
   console.log('PostgreSQL schema initialized');
 };
 
@@ -74,7 +79,7 @@ const normalizeMessage = (row) => {
   }
 
   return {
-    id: row.id,
+    id: row.message_id || row.id,
     senderName,
     text: row.text,
     file,
@@ -86,6 +91,25 @@ app.use(express.json());
 
 io.on('connection', (socket) => {
   console.log('socket connected', socket.id);
+
+  socket.on("deleteMessage", async ({ room, id }) => {
+
+    try{
+
+        await pool.query(
+            "DELETE FROM messages WHERE message_id=$1",
+            [id]
+        );
+
+        io.to(room).emit("messageDeleted", id);
+
+    }catch(err){
+
+        console.log(err);
+
+    }
+
+});
 
   socket.on('join', async (room) => {
     if (!room) return;
@@ -118,9 +142,18 @@ io.on('connection', (socket) => {
       // Ensure file is stored as JSON in the JSONB column. stringify if needed.
       const fileParam = message.file ? JSON.stringify(message.file) : null;
       await pool.query(
-        `INSERT INTO messages (room, senderName, text, file, time) VALUES ($1, $2, $3, $4, $5)`,
-        [room, message.senderName, message.text, fileParam, message.time]
-      );
+`INSERT INTO messages
+(message_id, room, senderName, text, file, time)
+VALUES ($1,$2,$3,$4,$5,$6)`,
+[
+message.id,
+room,
+message.senderName,
+message.text,
+fileParam,
+message.time
+]
+);
 
       // Emit the message back to clients. Keep the original message object
       // (which includes the file as an object) so clients can render immediately.
