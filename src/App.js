@@ -161,7 +161,7 @@ function App() {
         {/* Header */}
 
         <div className="bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white px-8 py-10 text-center">
-
+             
           <div className="text-5xl mb-3">
             💬
           </div>
