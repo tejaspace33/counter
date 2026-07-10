@@ -512,7 +512,7 @@ return (
                   className={`text-xs mt-3 text-right ${
                     isMine(message)
                       ? "text-purple-100"
-                      : "text-gray-400"
+                      : "text-blue-400"
                   }`}
                 >
                   {formatTime(message.time)}
