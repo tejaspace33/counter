@@ -193,10 +193,10 @@ function Chat({ onLogout }) {
   }, [modalImage]);
 
   return (
-    <div className="max-w-3xl mx-auto card-bg p-3 md:p-6 rounded-2xl h-screen md:h-auto md:max-h-screen overflow-hidden md:overflow-visible flex flex-col">
-      <header className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
-        <div className="flex items-center gap-3">
-          <FiUser className="w-7 h-7 text-ig-purple" />
+    <div className="max-w-3xl mx-auto card-bg p-2 md:p-6 rounded-2xl h-screen md:h-auto md:max-h-screen overflow-hidden md:overflow-visible flex flex-col">
+      <header className="flex items-center justify-between mb-2 md:mb-4 gap-2 md:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+          <FiUser className="w-5 h-5 md:w-7 md:h-7 text-ig-purple flex-shrink-0" />
           <div>
             <h1 className="text-2xl font-bold text-ig-purple">Chat</h1>
             <div className="text-sm text-gray-600">Logged in as <span className="font-semibold truncate">{currentUser?.name}</span></div>
