@@ -464,31 +464,31 @@ return (
                   max-w-[92%]
                   sm:max-w-[80%]
                   lg:max-w-[60%]
-                  rounded-2xl
-                  shadow
+                  rounded-3xl
+                  shadow-sm
                   px-4
                   py-3
                   ${
-                    isMine(message)
-                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-                      : "bg-white"
-                  }
+  isMine(message)
+    ? "bg-[#DCF8C6] text-black rounded-br-md border border-green-200"
+    : "bg-white text-black rounded-bl-md border border-gray-200"
+}
                 `}
               >
 
-                <div
-                  className={`font-semibold text-sm ${
-                    isMine(message)
-                      ? "text-purple-100"
-                      : "text-purple-600"
-                  }`}
-                >
+               <div
+  className={`font-bold text-sm ${
+    isMine(message)
+      ? "text-green-700"
+      : "text-blue-700"
+  }`}
+>
                   {message.senderName}
                 </div>
 
                 {message.text && (
 
-                  <p className="mt-2 whitespace-pre-wrap break-words leading-relaxed">
+                  <p className="mt-2 text-black whitespace-pre-wrap break-words leading-relaxed">
 
                     {message.text}
 
@@ -536,12 +536,8 @@ return (
 
         <div className="flex items-end gap-3 relative">
 
-          <label className="cursor-pointer">
-
-            <FiImage
-              size={22}
-              className="text-gray-600 hover:text-purple-600 transition"
-            />
+          <label className="flex items-center justify-center w-11 h-11 rounded-xl border border-gray-300 bg-white cursor-pointer hover:bg-gray-100 transition-all shadow-sm">
+    <FiImage className="w-5 h-5 text-gray-600" />
 
             <input
               ref={fileInputRef}
