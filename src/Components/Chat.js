@@ -692,14 +692,7 @@ return (
                 +
               </button>
 
-              <a
-                href={modalImage}
-                download="image"
-                className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                Download
-              </a>
-
+             
             </div>
 
             <div className="pb-4 text-center text-xs text-gray-400">
