@@ -496,35 +496,18 @@ return (
                   </p>
 
                 )}
-
-                {message.file && (
-
-                  <div className="mt-3">
-
-                    {isImage(message.file) ? (
-
-                      <img
-                        src={message.file.dataUrl}
-                        alt={message.file.name}
-                        onClick={() => openImage(message.file)}
-                        className="rounded-xl cursor-pointer max-h-72 object-cover hover:scale-[1.02] transition"
-                      />
-
-                    ) : (
-
-                      <a
-                        href={message.file.dataUrl}
-                        download={message.file.name}
-                        className="underline text-blue-500 break-all"
-                      >
-                        {message.file.name}
-                      </a>
-
-                    )}
-
-                  </div>
-
-                )}
+{message.file ? (
+  <div className="mt-2">
+    {message.file.type?.startsWith("image/") && (
+      <img
+        src={message.file.dataUrl}
+        alt={message.file.name}
+        className="max-w-full md:max-w-sm rounded-lg cursor-pointer object-contain shadow"
+        onClick={() => openImage(message.file)}
+      />
+    )}
+  </div>
+) : null}
 
                 <div
                   className={`text-xs mt-3 text-right ${
