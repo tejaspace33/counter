@@ -297,31 +297,7 @@ function App() {
 
           )}
 
-          <div className="mt-8 border-t pt-5">
-
-            <h3 className="font-semibold text-gray-800 mb-3">
-
-              Features
-
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
-
-              <div>🔒 Private Rooms</div>
-
-              <div>⚡ Real-Time Chat</div>
-
-              <div>🖼 Image Sharing</div>
-
-              <div>😀 Emoji Support</div>
-
-              <div>🧹 Clear Chat</div>
-
-              <div>⏱ Auto Logout</div>
-
-            </div>
-
-          </div>
+         
 
         </div>
 
