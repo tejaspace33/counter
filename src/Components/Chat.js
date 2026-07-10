@@ -33,6 +33,35 @@ function Chat({ onLogout }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto logout after 10 minutes without sending a message
+useEffect(() => {
+  if (!currentUser) return;
+
+  const checkTimeout = () => {
+    const last = Number(localStorage.getItem("lastMessageTime") || 0);
+
+    if (!last) return;
+
+    if (Date.now() - last >= 10 * 60 * 1000) {
+      alert("Session expired due to inactivity.");
+
+      dispatch(leaveRoom());
+
+      localStorage.removeItem("chatUser");
+      localStorage.removeItem("lastMessageTime");
+
+      onLogout();
+    }
+  };
+
+  checkTimeout();
+
+  const interval = setInterval(checkTimeout, 30000);
+
+  return () => clearInterval(interval);
+
+}, [currentUser, dispatch, onLogout]);
+
   // connect to socket when currentUser joins
   useEffect(() => {
     if (!currentUser) return;
@@ -105,6 +134,11 @@ function Chat({ onLogout }) {
       // send to server; server will broadcast message back to all clients including sender
       if (socketRef.current && socketRef.current.connected && currentUser) {
         socketRef.current.emit('sendMessage', { room: currentUser.roomId, message: nextMessage });
+        // User is active because they sent a message
+localStorage.setItem(
+    "lastMessageTime",
+    Date.now().toString()
+);
       } else {
         // fallback to local dispatch
         dispatch(sendMessage(nextMessage));
