@@ -382,9 +382,9 @@ return (
 
           <div className="min-w-0">
 
-            <h2 className="text-xl font-bold text-gray-800 truncate">
-              Room Chat
-            </h2>
+            <h1 className="text-2xl font-bold text-ig-purple">
+  {currentUser?.roomId} Room
+</h1>
 
             <p className="text-sm text-gray-500 truncate">
               Logged in as
