@@ -358,8 +358,7 @@ const formatTime = (time) => {
   return time;
 };
 
-const isImage = (file) =>
-  file?.type?.startsWith("image/");
+
 
 const isMine = (message) =>
   message.senderName === currentUser?.name;
