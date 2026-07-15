@@ -364,13 +364,13 @@ const isMine = (message) =>
   message.senderName === currentUser?.name;
 
 return (
-  <div className="w-full h-screen bg-gray-100 overflow-hidden">
+  <div className="fixed inset-0 bg-gray-100">
 
     <div className="w-full h-full bg-white flex flex-col">
 
       {/* ================= HEADER ================= */}
 
-      <header className="flex-shrink-0 bg-white border-b px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <header className="flex-shrink-0 bg-white border-b px-4 py-3">
 
         <div className="flex items-center gap-3 min-w-0">
 
@@ -421,7 +421,7 @@ return (
 
       {/* ================= MESSAGES ================= */}
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 px-3 sm:px-5 py-5 min-h-0">
+      <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 px-3 sm:px-5 py-5">
 
         {messages.length === 0 ? (
 
