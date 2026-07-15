@@ -364,13 +364,13 @@ const isMine = (message) =>
   message.senderName === currentUser?.name;
 
 return (
-  <div className="w-full h-[100dvh] bg-gray-100 flex justify-center items-center p-0 md:p-6">
+  <div className="w-full h-screen bg-gray-100 overflow-hidden">
 
-    <div className="w-full max-w-6xl h-full md:h-[95vh] bg-white shadow-2xl rounded-none md:rounded-3xl overflow-hidden flex flex-col">
+    <div className="w-full h-full bg-white flex flex-col">
 
       {/* ================= HEADER ================= */}
 
-      <header className="sticky top-0 z-20 bg-white border-b px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <header className="flex-shrink-0 bg-white border-b px-4 py-3 flex flex-wrap items-center justify-between gap-4">
 
         <div className="flex items-center gap-3 min-w-0">
 
@@ -421,7 +421,7 @@ return (
 
       {/* ================= MESSAGES ================= */}
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 px-3 sm:px-5 py-5">
+      <main className="flex-1 overflow-y-auto bg-gray-50 px-3 sm:px-5 py-5 min-h-0">
 
         {messages.length === 0 ? (
 
@@ -509,11 +509,7 @@ return (
 ) : null}
 
                 <div
-                  className={`text-xs mt-3 text-right ${
-                    isMine(message)
-                      ? "text-purple-100"
-                      : "text-blue-400"
-                  }`}
+                  className="text-xs mt-3 text-right text-gray-500"
                 >
                   {formatTime(message.time)}
                 </div>
@@ -532,11 +528,11 @@ return (
 
       {/* ================= INPUT ================= */}
 
-      <footer className="sticky bottom-0 bg-white border-t p-4">
+      <footer className="flex-shrink-0 bg-white border-t p-4">
 
         <div className="flex items-end gap-3 relative">
 
-          <label className="flex items-center justify-center w-11 h-11 rounded-xl border border-gray-300 bg-white cursor-pointer hover:bg-gray-100 transition-all shadow-sm">
+          <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
     <FiImage className="w-5 h-5 text-gray-600" />
 
             <input
@@ -589,7 +585,7 @@ return (
 
           <button
             onClick={handleSend}
-            className="w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition"
+            className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 shadow-md transition"
           >
             <FiSend />
           </button>
