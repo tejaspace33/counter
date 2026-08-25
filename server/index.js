@@ -449,60 +449,47 @@ app.get("/health", async (req, res) => {
 // CLEAR ROOM
 // ======================================================
 
-app.post("/clear-room", async (req, res) => {
+app.post('/clear-room', async (req, res) => {
+  console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
+  console.log("BODY:", req.body);
 
   const { room } = req.body;
 
   if (!room) {
+    console.log("❌ ROOM IS MISSING");
     return res.status(400).json({
-      error: "room is required",
+      error: "room is required"
     });
   }
 
-  const normalizedRoom = room
-    .trim()
-    .toLowerCase();
-
   try {
+    console.log("🧹 Deleting room:", room);
 
     const result = await pool.query(
-      `
-      DELETE FROM messages
-      WHERE room = $1
-      `,
-      [normalizedRoom]
+      "DELETE FROM messages WHERE room = $1",
+      [room]
     );
 
+    console.log("✅ DELETE SUCCESS");
+    console.log("🗑️ ROWS DELETED:", result.rowCount);
 
-    console.log(
-      `🧹 Cleared room ${normalizedRoom}: ${result.rowCount} messages`
-    );
+    io.to(room).emit("clearRoom");
 
-
-    io.to(normalizedRoom).emit(
-      "clearRoom"
-    );
-
-
-    return res.json({
-      room: normalizedRoom,
-      cleared: true,
-      deleted: result.rowCount,
+    return res.status(200).json({
+      success: true,
+      room: room,
+      deleted: result.rowCount
     });
 
-  } catch (error) {
-
-    console.error(
-      "❌ Error clearing room:",
-      error
-    );
+  } catch (err) {
+    console.error("❌ CLEAR ROOM DATABASE ERROR:", err);
 
     return res.status(500).json({
-      error: "Unable to clear room",
+      success: false,
+      error: err.message
     });
   }
 });
-
 
 // ======================================================
 // START SERVER
