@@ -43,23 +43,27 @@ const chatSlice = createSlice({
   reducers: {
     joinRoom(state, action) {
       const { roomId, name } = action.payload;
+      
+      // Normalize to lowercase for case-insensitive matching
+      const normalizedRoomId = roomId.toLowerCase();
+      const normalizedName = name.toLowerCase();
 
       let stored = [];
 
       try {
         stored = JSON.parse(
-          localStorage.getItem(persistKey(roomId)) || "[]"
+          localStorage.getItem(persistKey(normalizedRoomId)) || "[]"
         );
       } catch {
         stored = [];
       }
 
-      state.currentUser = { roomId, name };
+      state.currentUser = { roomId: normalizedRoomId, name: normalizedName };
       state.messages = stored;
 
       localStorage.setItem(
         USER_KEY,
-        JSON.stringify({ roomId, name })
+        JSON.stringify({ roomId: normalizedRoomId, name: normalizedName })
       );
 
       localStorage.setItem(

@@ -22,7 +22,6 @@ function App() {
   const [roomId, setRoomId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
-  const [step, setStep] = useState(1);
 
   /* ------------------------------
      Save room messages
@@ -73,32 +72,15 @@ function App() {
   }, [currentUser, dispatch]);
 
   /* ------------------------------
-     Step 1
+     Handle Join Room
   ------------------------------ */
 
   const handleJoin = () => {
     const id = roomId.trim();
-
-    if (!id) {
-      setError("Please enter a Room ID.");
-      return;
-    }
-
-    setError("");
-    setStep(2);
-  };
-
-  /* ------------------------------
-     Step 2
-  ------------------------------ */
-
-  const handleEnterRoom = () => {
-    const id = roomId.trim();
     const name = displayName.trim();
 
     if (!id) {
-      setError("Room ID missing.");
-      setStep(1);
+      setError("Please enter a Room ID.");
       return;
     }
 
@@ -109,8 +91,8 @@ function App() {
 
     dispatch(
       joinRoom({
-        roomId: id,
-        name,
+        roomId: id.toLowerCase(),
+        name: name.toLowerCase(),
       })
     );
 
@@ -127,11 +109,6 @@ function App() {
     setRoomId("");
     setDisplayName("");
     setError("");
-    setStep(1);
-
-    localStorage.removeItem("chatUser");
-    localStorage.removeItem("lastMessageTime");
-  };
 
   /* ------------------------------
      Generate Room ID
@@ -181,73 +158,27 @@ function App() {
 
         <div className="p-6 sm:p-8">
 
-          {step === 1 ? (
+          <>
 
-            <>
+            <div className="mb-6">
 
-              <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
 
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Room ID
 
-                  Room ID
+              </label>
 
-                </label>
+              <input
+                type="text"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value)}
+                placeholder="Enter room ID"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-violet-500 outline-none"
+              />
 
-                <input
-                  type="text"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
-                  placeholder="Enter room ID"
-                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-violet-500 outline-none"
-                />
+            </div>
 
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-
-                <button
-                  onClick={handleJoin}
-                  className="rounded-2xl bg-violet-600 hover:bg-violet-700 text-white py-3 font-semibold transition"
-                >
-                  Join Room
-                </button>
-
-                <button
-                  onClick={generateRoomId}
-                  className="rounded-2xl border border-violet-200 hover:bg-violet-50 py-3 font-semibold transition"
-                >
-                  Generate
-                </button>
-
-              </div>
-
-            </>
-
-          ) : (
-
-            <>
-
-              <div className="mb-6">
-
-                <h2 className="text-2xl font-bold text-gray-800">
-
-                  Welcome 👋
-
-                </h2>
-
-                <p className="text-gray-500 mt-2">
-
-                  Room
-
-                  <span className="font-semibold text-violet-600 ml-2">
-
-                    {roomId}
-
-                  </span>
-
-                </p>
-
-              </div>
+            <div className="mb-6">
 
               <label className="block text-sm font-semibold text-gray-700 mb-2">
 
@@ -263,30 +194,27 @@ function App() {
                 className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-violet-500 outline-none"
               />
 
-              <div className="grid grid-cols-2 gap-3 mt-6">
+            </div>
 
-                <button
-                  onClick={handleEnterRoom}
-                  className="rounded-2xl bg-violet-600 hover:bg-violet-700 text-white py-3 font-semibold transition"
-                >
-                  Enter Chat
-                </button>
+            <div className="grid grid-cols-2 gap-3">
 
-                <button
-                  onClick={() => {
-                    setStep(1);
-                    setError("");
-                  }}
-                  className="rounded-2xl border border-gray-300 hover:bg-gray-100 py-3 font-semibold transition"
-                >
-                  Back
-                </button>
+              <button
+                onClick={handleJoin}
+                className="rounded-2xl bg-violet-600 hover:bg-violet-700 text-white py-3 font-semibold transition"
+              >
+                Join Room
+              </button>
 
-              </div>
+              <button
+                onClick={generateRoomId}
+                className="rounded-2xl border border-violet-200 hover:bg-violet-50 py-3 font-semibold transition"
+              >
+                Generate
+              </button>
 
-            </>
+            </div>
 
-          )}
+          </>
 
           {error && (
 
