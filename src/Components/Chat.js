@@ -438,65 +438,7 @@ function Chat({ onLogout }) {
   // CLEAR ROOM
   // ==================================================
 
-  const handleClearRoom =
-    async () => {
-
-      if (
-        !currentUser?.roomId
-      ) {
-        return;
-      }
-
-
-      const confirmed =
-        window.confirm(
-          "Clear this room for everyone?"
-        );
-
-
-      if (!confirmed) {
-        return;
-      }
-
-
-      setClearing(true);
-
-
-      try {
-
-        console.log(
-          "🧹 Clearing room:",
-          currentUser.roomId
-        );
-
-
-        const response =
-          await fetch(
-            `${socketURL}/clear-room`,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                room:
-                  currentUser.roomId,
-              }),
-            }
-          );
-
-
-        const data =
-          await response.json();
-
-
-        console.log(
-          "Clear response:",
-          data
-        );
+  
 
 const handleClearRoom = async () => {
   if (!currentUser?.roomId) {
