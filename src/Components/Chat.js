@@ -112,7 +112,6 @@ function Chat({ onLogout }) {
 
    const socket = io(socketURL, {
   transports: ["polling", "websocket"],
-  upgrade: true,
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
