@@ -182,6 +182,30 @@ const normalizeMessage = (row) => {
 // ======================================================
 
 io.on("connection", (socket) => {
+  socket.on("clearRoom", async ({ room }) => {
+  console.log("🧹 CLEAR ROOM SOCKET REQUEST:", room);
+
+  if (!room) {
+    console.log("❌ No room received");
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM messages WHERE room = $1",
+      [room]
+    );
+
+    console.log(
+      `✅ Room ${room} cleared. Deleted ${result.rowCount} messages.`
+    );
+
+    io.to(room).emit("clearRoom");
+
+  } catch (err) {
+    console.error("❌ CLEAR ROOM ERROR:", err);
+  }
+});
   console.log(
     "🟢 Socket connected:",
     socket.id
