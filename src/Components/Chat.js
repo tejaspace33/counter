@@ -438,17 +438,13 @@ function Chat({ onLogout }) {
   // CLEAR ROOM
   // ==================================================
 
-  
-
-const handleClearRoom = async () => {
+  const handleClearRoom = async () => {
   if (!currentUser?.roomId) {
-    alert("No room ID");
+    alert("❌ No room ID found");
     return;
   }
 
   const room = currentUser.roomId;
-
-  console.log("CLEARING ROOM:", room);
 
   try {
     const response = await fetch(
@@ -458,21 +454,28 @@ const handleClearRoom = async () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          room: room,
-        }),
+        body: JSON.stringify({ room }),
       }
     );
 
-    console.log("CLEAR STATUS:", response.status);
+    const responseText = await response.text();
 
-    const data = await response.json();
-
-    console.log("CLEAR RESPONSE:", data);
+    console.log("STATUS:", response.status);
+    console.log("RESPONSE:", responseText);
 
     if (!response.ok) {
-      alert("Clear failed: " + JSON.stringify(data));
+      alert(
+        `❌ Clear failed\nStatus: ${response.status}\n${responseText}`
+      );
       return;
+    }
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = {};
     }
 
     dispatch(setMessages([]));
@@ -480,12 +483,15 @@ const handleClearRoom = async () => {
     localStorage.removeItem(`chatRoom:${room}`);
 
     alert(
-      `Room cleared successfully.\nDeleted: ${data.deleted}`
+      `✅ Room cleared\nDeleted: ${data.deleted ?? "unknown"}`
     );
 
   } catch (error) {
-    console.error("CLEAR ERROR:", error);
-    alert("Clear error: " + error.message);
+    console.error("CLEAR ROOM ERROR:", error);
+
+    alert(
+      `❌ Request failed\n${error.message}`
+    );
   }
 };
 
