@@ -111,7 +111,7 @@ function Chat({ onLogout }) {
     if (!currentUser) return;
 
    const socket = io(socketURL, {
-  transports: ["polling", "websocket"],
+  transports: ["polling"],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
