@@ -33,6 +33,13 @@ const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
+pool.query('SELECT NOW()')
+  .then(result => {
+    console.log('✅ DATABASE CONNECTED:', result.rows[0]);
+  })
+  .catch(err => {
+    console.error('❌ DATABASE CONNECTION ERROR:', err.message);
+  });
 
 const initDb = async () => {
   await pool.query(`
