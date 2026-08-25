@@ -498,42 +498,64 @@ function Chat({ onLogout }) {
           data
         );
 
+const handleClearRoom = async () => {
+  if (!currentUser?.roomId) {
+    alert("Room not found.");
+    return;
+  }
 
-        if (!response.ok) {
+  const confirmed = window.confirm(
+    "Clear this room for everyone?"
+  );
 
-          throw new Error(
-            data.error ||
-              "Unable to clear room"
-          );
-        }
+  if (!confirmed) return;
 
+  setClearing(true);
 
-        dispatch(
-          clearRoom()
-        );
-
-
-        console.log(
-          "✅ Room cleared"
-        );
-
-      } catch (error) {
-
-        console.error(
-          "❌ Clear room error:",
-          error
-        );
-
-
-        alert(
-          "Unable to clear room."
-        );
-
-      } finally {
-
-        setClearing(false);
+  try {
+    const response = await fetch(
+      `${socketURL}/clear-room`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          room: currentUser.roomId,
+        }),
       }
-    };
+    );
+
+    const data = await response.json();
+
+    console.log("🧹 CLEAR ROOM RESPONSE:", data);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error || "Unable to clear room"
+      );
+    }
+
+    // Clear Redux immediately
+    dispatch(setMessages([]));
+
+    // Clear localStorage copy too
+    localStorage.removeItem(
+      `chatRoom:${currentUser.roomId}`
+    );
+
+    console.log("✅ ROOM CLEARED SUCCESSFULLY");
+
+  } catch (error) {
+    console.error("❌ CLEAR ROOM ERROR:", error);
+
+    alert(
+      "Unable to clear room. Check the Railway server."
+    );
+  } finally {
+    setClearing(false);
+  }
+};
 
 
   // ==================================================
