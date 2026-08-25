@@ -19,15 +19,11 @@ const ALLOWED_ORIGINS = [
 // ======================================================
 // EXPRESS CORS
 // ======================================================
-
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Vary", "Origin");
-    res.header("Access-Control-Allow-Credentials", "true");
-  }
+  res.header(
+    "Access-Control-Allow-Origin",
+    "https://counter298.netlify.app"
+  );
 
   res.header(
     "Access-Control-Allow-Methods",
@@ -39,12 +35,18 @@ app.use((req, res, next) => {
     "Content-Type"
   );
 
+  res.header(
+    "Access-Control-Allow-Credentials",
+    "true"
+  );
+
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
 
   next();
 });
+
 
 app.use(express.json());
 
