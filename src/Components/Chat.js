@@ -110,10 +110,13 @@ function Chat({ onLogout }) {
   useEffect(() => {
     if (!currentUser) return;
 
-    const socket = io(socketURL, {
-      transports: ["websocket", "polling"],
-    });
-
+   const socket = io(socketURL, {
+  transports: ["polling", "websocket"],
+  upgrade: true,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+});
     socketRef.current = socket;
 
     socket.on("connect", () => {
