@@ -117,9 +117,14 @@ function Chat({ onLogout }) {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      socket.emit("join", currentUser.roomId);
-    });
+  console.log("✅ CONNECTED TO RAILWAY:", socket.id);
 
+  socket.emit("join", currentUser.roomId);
+});
+
+socket.on("connect_error", (error) => {
+  console.error("❌ SOCKET ERROR:", error.message);
+});
     socket.on("history", (history = []) => {
       dispatch(setMessages(history));
     });
@@ -242,18 +247,20 @@ function Chat({ onLogout }) {
     };
 
     if (socketRef.current?.connected) {
-      socketRef.current.emit("sendMessage", {
-        room: currentUser.roomId,
-        message,
-      });
+  console.log("📤 Sending to Railway:", message);
 
-      localStorage.setItem(
-        "lastMessageTime",
-        Date.now().toString()
-      );
-    } else {
-      dispatch(sendMessage(message));
-    }
+  socketRef.current.emit("sendMessage", {
+    room: currentUser.roomId,
+    message,
+  });
+
+  localStorage.setItem(
+    "lastMessageTime",
+    Date.now().toString()
+  );
+} else {
+  console.error("❌ SOCKET NOT CONNECTED TO RAILWAY");
+}
 
     setText("");
     setFile(null);
