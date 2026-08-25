@@ -1,68 +1,112 @@
-﻿const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const { Pool } = require('pg');
-require('dotenv').config();
+﻿const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const { Pool } = require("pg");
+require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: [
-      "https://counter298.netlify.app/"
-    ],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
+
+const PORT = process.env.PORT || 3001;
+
+const ALLOWED_ORIGINS = [
+  "https://counter298.netlify.app",
+  "http://localhost:3000",
+  "http://localhost:3001",
+];
+
+
+// ======================================================
+// EXPRESS CORS
+// ======================================================
 
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
   res.header(
-    'Access-Control-Allow-Origin',
-    'https://YOUR-NETLIFY-SITE.netlify.app'
+    "Access-Control-Allow-Methods",
+    "GET,POST,OPTIONS"
   );
 
   res.header(
-    'Access-Control-Allow-Methods',
-    'GET,POST,OPTIONS'
+    "Access-Control-Allow-Headers",
+    "Content-Type"
   );
 
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Content-Type'
-  );
-
-  res.header(
-    'Access-Control-Allow-Credentials',
-    'true'
-  );
-
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
 
   next();
 });
 
+app.use(express.json());
+
+
+// ======================================================
+// SOCKET.IO
+// ======================================================
+
+const io = new Server(server, {
+  cors: {
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+
+  transports: ["polling", "websocket"],
+});
+
+
+// ======================================================
+// POSTGRESQL
+// ======================================================
+
 const DATABASE_URL = process.env.DATABASE_URL;
+
 if (!DATABASE_URL) {
-  console.error('Missing DATABASE_URL in environment');
+  console.error("❌ DATABASE_URL is missing");
   process.exit(1);
 }
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
+
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
-pool.query('SELECT NOW()')
-  .then(result => {
-    console.log('✅ PostgreSQL connected:', result.rows[0]);
-  })
-  .catch(err => {
-    console.error('❌ PostgreSQL connection error:', err.message);
-  });
+
+
+// Test PostgreSQL connection
+const testDatabase = async () => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+
+    console.log(
+      "✅ PostgreSQL connected:",
+      result.rows[0]
+    );
+  } catch (error) {
+    console.error(
+      "❌ PostgreSQL connection failed:",
+      error.message
+    );
+
+    throw error;
+  }
+};
+
+
+// ======================================================
+// DATABASE INITIALIZATION
+// ======================================================
 
 const initDb = async () => {
   await pool.query(`
@@ -75,177 +119,460 @@ const initDb = async () => {
       time TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
-      
   `);
+
   await pool.query(`
-ALTER TABLE messages
-ADD COLUMN IF NOT EXISTS message_id TEXT;
-`);
-  console.log('PostgreSQL schema initialized');
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS message_id TEXT
+  `);
+
+  console.log("✅ PostgreSQL schema initialized");
 };
 
-const normalizeMessage = (row) => {
-  // ensure senderName is present regardless of column casing
-  const senderName = row.sendername || row.senderName || 'Unknown';
 
-  // file may be returned as an object or a JSON string depending on how it was stored
+// ======================================================
+// NORMALIZE MESSAGE
+// ======================================================
+
+const normalizeMessage = (row) => {
   let file = row.file || null;
-  if (file && typeof file === 'string') {
+
+  if (file && typeof file === "string") {
     try {
       file = JSON.parse(file);
-    } catch (err) {
-      // leave as string if parsing fails
-      console.warn('Failed to parse file JSON from DB row', err && err.message);
+    } catch (error) {
+      console.warn(
+        "Could not parse file JSON:",
+        error.message
+      );
     }
   }
-  
-  // ensure file has expected shape if it exists
-  if (file && typeof file === 'object') {
+
+  if (file && typeof file === "object") {
     file = {
-      name: file.name || 'file',
-      type: file.type || 'application/octet-stream',
+      name: file.name || "file",
+      type:
+        file.type ||
+        "application/octet-stream",
       dataUrl: file.dataUrl || null,
     };
   }
 
   return {
     id: row.message_id || row.id,
-    senderName,
-    text: row.text,
+
+    senderName:
+      row.sendername ||
+      row.senderName ||
+      "Unknown",
+
+    text: row.text || "",
+
     file,
-    time: row.time,
+
+    time: row.time || "",
   };
 };
 
-app.use(express.json());
 
-io.on('connection', (socket) => {
-  console.log('socket connected', socket.id);
+// ======================================================
+// SOCKET CONNECTION
+// ======================================================
 
-  socket.on("deleteMessage", async ({ room, id }) => {
+io.on("connection", (socket) => {
+  console.log(
+    "🟢 Socket connected:",
+    socket.id
+  );
 
-    try{
 
-        await pool.query(
-            "DELETE FROM messages WHERE message_id=$1",
-            [id]
-        );
+  // ====================================================
+  // JOIN ROOM
+  // ====================================================
 
-        io.to(room).emit("messageDeleted", id);
-
-    }catch(err){
-
-        console.log(err);
-
+  socket.on("join", async (room) => {
+    if (!room) {
+      console.log("❌ Join failed: no room");
+      return;
     }
 
-});
+    const normalizedRoom = room
+      .trim()
+      .toLowerCase();
 
-  socket.on('join', async (room) => {
-    if (!room) return;
-    socket.join(room);
+    socket.join(normalizedRoom);
+
+    console.log(
+      `👤 ${socket.id} joined room: ${normalizedRoom}`
+    );
 
     try {
       const result = await pool.query(
-        'SELECT * FROM messages WHERE room = $1 ORDER BY created_at ASC',
-        [room]
+        `
+        SELECT *
+        FROM messages
+        WHERE room = $1
+        ORDER BY created_at ASC
+        `,
+        [normalizedRoom]
       );
-      const history = result.rows.map(normalizeMessage);
-      socket.emit('history', history);
-    } catch (err) {
-      console.error('Error fetching history:', err);
-      socket.emit('history', []);
+
+      const history =
+        result.rows.map(normalizeMessage);
+
+      console.log(
+        `📚 Loaded ${history.length} messages for ${normalizedRoom}`
+      );
+
+      socket.emit("history", history);
+
+    } catch (error) {
+      console.error(
+        "❌ Error loading history:",
+        error.message
+      );
+
+      socket.emit("history", []);
     }
-
-    console.log(`socket ${socket.id} joined ${room}`);
   });
 
-  socket.on('leave', (room) => {
-    socket.leave(room);
-    console.log(`socket ${socket.id} left ${room}`);
+
+  // ====================================================
+  // LEAVE ROOM
+  // ====================================================
+
+  socket.on("leave", (room) => {
+    if (!room) return;
+
+    const normalizedRoom = room
+      .trim()
+      .toLowerCase();
+
+    socket.leave(normalizedRoom);
+
+    console.log(
+      `👋 ${socket.id} left ${normalizedRoom}`
+    );
   });
 
- socket.on('sendMessage', async ({ room, message }) => {
-  if (!room || !message) {
-    console.log('❌ Missing room or message');
-    return;
-  }
+
+  // ====================================================
+  // SEND MESSAGE
+  // ====================================================
+
+  socket.on(
+    "sendMessage",
+    async ({ room, message }) => {
+
+      if (!room || !message) {
+        console.log(
+          "❌ Missing room or message"
+        );
+
+        return;
+      }
+
+      const normalizedRoom = room
+        .trim()
+        .toLowerCase();
+
+      try {
+
+        const fileParam = message.file
+          ? JSON.stringify(message.file)
+          : null;
+
+
+        console.log("📥 Saving message:", {
+          id: message.id,
+          room: normalizedRoom,
+          senderName:
+            message.senderName,
+          text: message.text,
+        });
+
+
+        // SAVE TO POSTGRESQL
+        const result = await pool.query(
+          `
+          INSERT INTO messages
+          (
+            message_id,
+            room,
+            senderName,
+            text,
+            file,
+            time
+          )
+          VALUES
+          (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6
+          )
+          RETURNING *
+          `,
+          [
+            String(message.id),
+            normalizedRoom,
+            message.senderName,
+            message.text || null,
+            fileParam,
+            message.time,
+          ]
+        );
+
+
+        console.log(
+          "✅ Message saved to PostgreSQL:",
+          result.rows[0].id
+        );
+
+
+        // IMPORTANT:
+        // Only send the message to clients AFTER
+        // PostgreSQL successfully saved it.
+
+        io.to(normalizedRoom).emit(
+          "message",
+          message
+        );
+
+      } catch (error) {
+
+        console.error(
+          "❌ PostgreSQL INSERT ERROR:",
+          error
+        );
+
+        socket.emit(
+          "messageError",
+          "Message could not be saved."
+        );
+      }
+    }
+  );
+
+
+  // ====================================================
+  // DELETE MESSAGE
+  // ====================================================
+
+  socket.on(
+    "deleteMessage",
+    async ({ room, id }) => {
+
+      if (!room || !id) return;
+
+      try {
+
+        const result = await pool.query(
+          `
+          DELETE FROM messages
+          WHERE message_id = $1
+          `,
+          [String(id)]
+        );
+
+        console.log(
+          `🗑️ Deleted ${result.rowCount} message(s)`
+        );
+
+        io.to(room).emit(
+          "messageDeleted",
+          id
+        );
+
+      } catch (error) {
+
+        console.error(
+          "❌ Delete error:",
+          error.message
+        );
+      }
+    }
+  );
+
+
+  // ====================================================
+  // DISCONNECT
+  // ====================================================
+
+  socket.on("disconnect", () => {
+    console.log(
+      "🔴 Socket disconnected:",
+      socket.id
+    );
+  });
+});
+
+
+// ======================================================
+// HTTP ROUTES
+// ======================================================
+
+app.get("/", (req, res) => {
+  res.status(200).send(
+    "Socket.IO server running"
+  );
+});
+
+
+app.get("/health", async (req, res) => {
 
   try {
-    const fileParam = message.file
-      ? JSON.stringify(message.file)
-      : null;
 
-    console.log('📥 Saving message:', {
-      id: message.id,
-      room,
-      senderName: message.senderName,
-      text: message.text
+    await pool.query("SELECT 1");
+
+    res.json({
+      status: "ok",
+      database: "connected",
     });
 
+  } catch (error) {
+
+    res.status(500).json({
+      status: "error",
+      database: "disconnected",
+      error: error.message,
+    });
+  }
+});
+
+
+// ======================================================
+// CLEAR ROOM
+// ======================================================
+
+app.post("/clear-room", async (req, res) => {
+
+  const { room } = req.body;
+
+  if (!room) {
+    return res.status(400).json({
+      error: "room is required",
+    });
+  }
+
+  const normalizedRoom = room
+    .trim()
+    .toLowerCase();
+
+  try {
+
     const result = await pool.query(
-      `INSERT INTO messages
-       (message_id, room, senderName, text, file, time)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [
-        message.id,
-        room,
-        message.senderName,
-        message.text || null,
-        fileParam,
-        message.time
-      ]
+      `
+      DELETE FROM messages
+      WHERE room = $1
+      `,
+      [normalizedRoom]
     );
 
-    console.log('✅ Message saved to PostgreSQL');
 
-    io.to(room).emit('message', message);
+    console.log(
+      `🧹 Cleared room ${normalizedRoom}: ${result.rowCount} messages`
+    );
 
-  } catch (err) {
-    console.error('❌ Error inserting message:', err);
+
+    io.to(normalizedRoom).emit(
+      "clearRoom"
+    );
+
+
+    return res.json({
+      room: normalizedRoom,
+      cleared: true,
+      deleted: result.rowCount,
+    });
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error clearing room:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to clear room",
+    });
   }
 });
 
-  socket.on('disconnect', () => {
-    console.log('socket disconnected', socket.id);
-  });
-});
 
-app.get('/', (req, res) => res.send('Socket.IO server running'));
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// ======================================================
+// START SERVER
+// ======================================================
 
-app.post('/clear-room', async (req, res) => {
-  const { room } = req.body;
-  if (!room) {
-    return res.status(400).json({ error: 'room is required' });
-  }
+const startServer = async () => {
 
   try {
-    await pool.query('DELETE FROM messages WHERE room = $1', [room]);
-    io.to(room).emit('clearRoom');
-    return res.json({ room, cleared: true });
-  } catch (err) {
-    console.error('Error clearing room:', err);
-    return res.status(500).json({ error: 'Unable to clear room' });
-  }
-});
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, async () => {
-  await initDb();
-  console.log(`Server listening on ${PORT}`);
-});
+    await testDatabase();
+
+    await initDb();
+
+    server.listen(PORT, () => {
+
+      console.log(
+        `🚀 Server running on port ${PORT}`
+      );
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "❌ Server startup failed:",
+      error
+    );
+
+    process.exit(1);
+  }
+};
+
+
+startServer();
+
+
+// ======================================================
+// SHUTDOWN
+// ======================================================
 
 const shutdown = async () => {
+
+  console.log(
+    "🛑 Shutting down server..."
+  );
+
   try {
+
     await pool.end();
-    console.log('PostgreSQL pool closed');
-  } catch (err) {
-    console.error('Error closing PostgreSQL pool:', err);
+
+    console.log(
+      "✅ PostgreSQL pool closed"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error closing PostgreSQL:",
+      error
+    );
   }
+
   process.exit(0);
 };
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+
+process.on(
+  "SIGINT",
+  shutdown
+);
+
+process.on(
+  "SIGTERM",
+  shutdown
+);

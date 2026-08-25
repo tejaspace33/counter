@@ -1,6 +1,23 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { sendMessage, leaveRoom, setMessages } from "../store/chatSlice";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
+
+import {
+  sendMessage,
+  leaveRoom,
+  setMessages,
+  clearRoom,
+  removeMessage,
+} from "../store/chatSlice";
+
 import {
   FiSend,
   FiImage,
@@ -8,29 +25,79 @@ import {
   FiUser,
   FiSmile,
 } from "react-icons/fi";
+
 import { io } from "socket.io-client";
 
+
 function Chat({ onLogout }) {
+
   const dispatch = useDispatch();
 
-  const currentUser = useSelector((state) => state.chat.currentUser);
-  const messages = useSelector((state) => state.chat.messages);
 
-  const [text, setText] = useState("");
-  const [file, setFile] = useState(null);
+  const currentUser =
+    useSelector(
+      (state) =>
+        state.chat.currentUser
+    );
 
-  const [modalImage, setModalImage] = useState(null);
-  const [modalScale, setModalScale] = useState(1);
 
-  const [clearing, setClearing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const messages =
+    useSelector(
+      (state) =>
+        state.chat.messages
+    );
 
-  const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const socketRef = useRef(null);
+
+  const [text, setText] =
+    useState("");
+
+
+  const [file, setFile] =
+    useState(null);
+
+
+  const [modalImage, setModalImage] =
+    useState(null);
+
+
+  const [modalScale, setModalScale] =
+    useState(1);
+
+
+  const [clearing, setClearing] =
+    useState(false);
+
+
+  const [
+    showEmojiPicker,
+    setShowEmojiPicker,
+  ] = useState(false);
+
+
+  const messagesEndRef =
+    useRef(null);
+
+
+  const fileInputRef =
+    useRef(null);
+
+
+  const socketRef =
+    useRef(null);
+
+
+  // ==================================================
+  // RAILWAY URL
+  // ==================================================
 
   const socketURL =
-    process.env.REACT_APP_SOCKET_URL || "http://localhost:3001";
+    process.env.REACT_APP_SOCKET_URL ||
+    "https://counter-production-5447.up.railway.app";
+
+
+  // ==================================================
+  // EMOJIS
+  // ==================================================
 
   const EMOJIS = useMemo(
     () => [
@@ -53,668 +120,1359 @@ function Chat({ onLogout }) {
     []
   );
 
-  const toggleEmojiPicker = () => {
-    setShowEmojiPicker((prev) => !prev);
-  };
 
-  const addEmoji = (emoji) => {
-    setText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
-  // Always scroll to newest message
+  // ==================================================
+  // SCROLL
+  // ==================================================
 
   useEffect(() => {
+
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "end",
     });
+
   }, [messages]);
 
-  // Auto logout after inactivity
+
+  // ==================================================
+  // AUTO LOGOUT
+  // ==================================================
 
   useEffect(() => {
+
     if (!currentUser) return;
 
+
     const checkTimeout = () => {
-      const lastActivity = Number(
-        localStorage.getItem("lastMessageTime") || 0
-      );
+
+      const lastActivity =
+        Number(
+          localStorage.getItem(
+            "lastMessageTime"
+          ) || 0
+        );
+
 
       if (!lastActivity) return;
 
+
       const inactive =
-        Date.now() - lastActivity >= 10 * 60 * 1000;
+        Date.now() -
+          lastActivity >=
+        10 * 60 * 1000;
+
 
       if (!inactive) return;
 
-      alert("Session expired due to inactivity.");
 
-      dispatch(leaveRoom());
+      alert(
+        "Session expired due to inactivity."
+      );
 
-      localStorage.removeItem("chatUser");
-      localStorage.removeItem("lastMessageTime");
+
+      dispatch(
+        leaveRoom()
+      );
+
 
       onLogout();
     };
 
+
     checkTimeout();
 
-    const interval = setInterval(checkTimeout, 30000);
 
-    return () => clearInterval(interval);
-  }, [currentUser, dispatch, onLogout]);
-
-  // Socket Connection
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-   const socket = io(socketURL, {
-  transports: ["polling"],
-  reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 1000,
-});
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-  console.log("✅ CONNECTED TO RAILWAY:", socket.id);
-
-  socket.emit("join", currentUser.roomId);
-});
-
-socket.on("connect_error", (error) => {
-  console.error("❌ SOCKET ERROR:", error.message);
-});
-    socket.on("history", (history = []) => {
-      dispatch(setMessages(history));
-    });
-
-    socket.on("message", (message) => {
-      dispatch(sendMessage(message));
-    });
-
-    socket.on("clearRoom", () => {
-      dispatch(setMessages([]));
-    });
-
-    return () => {
-      socket.emit("leave", currentUser.roomId);
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [currentUser, dispatch, socketURL]);
-
-  // Close image modal with keyboard
-
-  useEffect(() => {
-    if (!modalImage) return;
-
-    const handleKey = (event) => {
-      switch (event.key) {
-        case "Escape":
-          closeModal();
-          break;
-
-        case "+":
-        case "=":
-          setModalScale((value) =>
-            Math.min(3, +(value + 0.25).toFixed(2))
-          );
-          break;
-
-        case "-":
-          setModalScale((value) =>
-            Math.max(0.5, +(value - 0.25).toFixed(2))
-          );
-          break;
-
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKey);
-
-    return () =>
-      window.removeEventListener("keydown", handleKey);
-  }, [modalImage]);
-
-  const handleClearRoom = async () => {
-    if (!currentUser?.roomId) return;
-
-    const confirmed = window.confirm(
-      "Clear this room for everyone?"
-    );
-
-    if (!confirmed) return;
-
-    setClearing(true);
-
-    try {
-      const response = await fetch(
-        `${socketURL}/clear-room`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            room: currentUser.roomId,
-          }),
-        }
+    const interval =
+      setInterval(
+        checkTimeout,
+        30000
       );
 
-      if (!response.ok) {
-        throw new Error("Unable to clear room.");
-      }
 
-      dispatch(setMessages([]));
-    } catch (error) {
-      console.error(error);
-      alert("Unable to clear room.");
-    } finally {
-      setClearing(false);
+    return () =>
+      clearInterval(interval);
+
+  }, [
+    currentUser,
+    dispatch,
+    onLogout,
+  ]);
+
+
+  // ==================================================
+  // SOCKET CONNECTION
+  // ==================================================
+
+  useEffect(() => {
+
+    if (!currentUser?.roomId) {
+      return;
     }
-  };
 
-  const openImage = (fileObject) => {
-    if (!fileObject?.dataUrl) return;
 
-    setModalImage(fileObject.dataUrl);
-    setModalScale(1);
-  };
+    console.log(
+      "🔌 Connecting to:",
+      socketURL
+    );
 
-  const closeModal = () => {
-    setModalImage(null);
-    setModalScale(1);
-  };
 
- const handleSend = () => {
-  const trimmed = text.trim();
+    const socket = io(
+      socketURL,
+      {
+        transports: [
+          "polling",
+          "websocket",
+        ],
 
-  if (!trimmed && !file) return;
+        reconnection: true,
 
-  const pushMessage = (filePayload = null) => {
-    const message = {
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      senderName: currentUser.name,
-      text: trimmed,
-      file: filePayload,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+        reconnectionAttempts: Infinity,
+
+        reconnectionDelay: 1000,
+
+        timeout: 20000,
+      }
+    );
+
+
+    socketRef.current =
+      socket;
+
+
+    // CONNECT
+
+    socket.on(
+      "connect",
+      () => {
+
+        console.log(
+          "✅ CONNECTED TO RAILWAY:",
+          socket.id
+        );
+
+
+        console.log(
+          "🏠 Joining room:",
+          currentUser.roomId
+        );
+
+
+        socket.emit(
+          "join",
+          currentUser.roomId
+        );
+      }
+    );
+
+
+    // HISTORY FROM POSTGRESQL
+
+    socket.on(
+      "history",
+      (history = []) => {
+
+        console.log(
+          "📚 PostgreSQL history:",
+          history.length
+        );
+
+
+        dispatch(
+          setMessages(history)
+        );
+      }
+    );
+
+
+    // NEW MESSAGE
+
+    socket.on(
+      "message",
+      (message) => {
+
+        console.log(
+          "📨 Message received:",
+          message
+        );
+
+
+        dispatch(
+          sendMessage(message)
+        );
+      }
+    );
+
+
+    // CLEAR ROOM
+
+    socket.on(
+      "clearRoom",
+      () => {
+
+        console.log(
+          "🧹 Room cleared by server"
+        );
+
+
+        dispatch(
+          clearRoom()
+        );
+      }
+    );
+
+
+    // DELETE MESSAGE
+
+    socket.on(
+      "messageDeleted",
+      (id) => {
+
+        dispatch(
+          removeMessage(id)
+        );
+      }
+    );
+
+
+    // MESSAGE ERROR
+
+    socket.on(
+      "messageError",
+      (error) => {
+
+        console.error(
+          "❌ Server message error:",
+          error
+        );
+
+        alert(
+          "Message could not be saved to PostgreSQL."
+        );
+      }
+    );
+
+
+    // CONNECTION ERROR
+
+    socket.on(
+      "connect_error",
+      (error) => {
+
+        console.error(
+          "❌ SOCKET ERROR:",
+          error.message
+        );
+      }
+    );
+
+
+    socket.on(
+      "disconnect",
+      (reason) => {
+
+        console.log(
+          "🔴 Socket disconnected:",
+          reason
+        );
+      }
+    );
+
+
+    return () => {
+
+      console.log(
+        "🔌 Disconnecting socket"
+      );
+
+
+      socket.emit(
+        "leave",
+        currentUser.roomId
+      );
+
+
+      socket.disconnect();
+
+
+      socketRef.current =
+        null;
+
     };
 
-    if (socketRef.current?.connected) {
-  console.log("📤 Sending to Railway:", message);
+  }, [
+    currentUser,
+    dispatch,
+    socketURL,
+  ]);
 
-  socketRef.current.emit("sendMessage", {
-    room: currentUser.roomId,
-    message,
-  });
 
-  localStorage.setItem(
-    "lastMessageTime",
-    Date.now().toString()
-  );
-} else {
-  console.error("❌ SOCKET NOT CONNECTED TO RAILWAY");
-}
+  // ==================================================
+  // EMOJI
+  // ==================================================
 
-    setText("");
-    setFile(null);
+  const toggleEmojiPicker =
+    () => {
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+      setShowEmojiPicker(
+        (prev) => !prev
+      );
+    };
 
-  // Send Image
 
-  if (file) {
-    const reader = new FileReader();
+  const addEmoji =
+    (emoji) => {
 
-    reader.onload = () => {
-      const dataUrl = reader.result;
+      setText(
+        (prev) =>
+          prev + emoji
+      );
 
-      if (file.type.startsWith("image/")) {
-        const img = new Image();
+      setShowEmojiPicker(
+        false
+      );
+    };
 
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
 
-          const MAX_SIZE = 1200;
+  // ==================================================
+  // CLEAR ROOM
+  // ==================================================
 
-          if (width > MAX_SIZE || height > MAX_SIZE) {
-            const ratio = Math.min(
-              MAX_SIZE / width,
-              MAX_SIZE / height
-            );
+  const handleClearRoom =
+    async () => {
 
-            width = Math.round(width * ratio);
-            height = Math.round(height * ratio);
-          }
+      if (
+        !currentUser?.roomId
+      ) {
+        return;
+      }
 
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
 
-          const ctx = canvas.getContext("2d");
+      const confirmed =
+        window.confirm(
+          "Clear this room for everyone?"
+        );
 
-          ctx.drawImage(img, 0, 0, width, height);
 
-          const compressedImage = canvas.toDataURL(
-            "image/jpeg",
-            0.8
+      if (!confirmed) {
+        return;
+      }
+
+
+      setClearing(true);
+
+
+      try {
+
+        console.log(
+          "🧹 Clearing room:",
+          currentUser.roomId
+        );
+
+
+        const response =
+          await fetch(
+            `${socketURL}/clear-room`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                room:
+                  currentUser.roomId,
+              }),
+            }
           );
 
-          pushMessage({
-            name: file.name,
-            type: "image/jpeg",
-            dataUrl: compressedImage,
-          });
-        };
 
-        img.src = dataUrl;
-      } else {
-        pushMessage({
-          name: file.name,
-          type: file.type,
-          dataUrl,
-        });
+        const data =
+          await response.json();
+
+
+        console.log(
+          "Clear response:",
+          data
+        );
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            data.error ||
+              "Unable to clear room"
+          );
+        }
+
+
+        dispatch(
+          clearRoom()
+        );
+
+
+        console.log(
+          "✅ Room cleared"
+        );
+
+      } catch (error) {
+
+        console.error(
+          "❌ Clear room error:",
+          error
+        );
+
+
+        alert(
+          "Unable to clear room."
+        );
+
+      } finally {
+
+        setClearing(false);
       }
     };
 
-    reader.readAsDataURL(file);
 
-    return;
-  }
+  // ==================================================
+  // IMAGE MODAL
+  // ==================================================
 
-  pushMessage();
-};
+  const openImage =
+    (fileObject) => {
 
-const handleKeyDown = (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    handleSend();
-  }
-};
-
-const removeAttachment = () => {
-  setFile(null);
-
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-};
-
-const logout = () => {
-  dispatch(leaveRoom());
-
-  localStorage.removeItem("chatUser");
-  localStorage.removeItem("lastMessageTime");
-
-  onLogout();
-};
-
-const formatTime = (time) => {
-  if (!time) return "";
-
-  return time;
-};
+      if (
+        !fileObject?.dataUrl
+      ) {
+        return;
+      }
 
 
+      setModalImage(
+        fileObject.dataUrl
+      );
 
-const isMine = (message) =>
-  message.senderName === currentUser?.name;
+      setModalScale(1);
+    };
 
-return (
-  <div className="fixed inset-0 bg-gray-100">
 
-    <div className="w-full h-full bg-white flex flex-col">
+  const closeModal =
+    () => {
 
-      {/* ================= HEADER ================= */}
+      setModalImage(null);
 
-      <header className="flex-shrink-0 bg-white border-b px-4 py-3">
+      setModalScale(1);
+    };
 
-        <div className="flex items-center gap-3 min-w-0">
 
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center">
+  // ==================================================
+  // IMAGE MODAL KEYBOARD
+  // ==================================================
 
-            <FiUser size={22} />
+  useEffect(() => {
 
-          </div>
+    if (!modalImage) {
+      return;
+    }
 
-          <div className="min-w-0">
 
-            <h1 className="text-2xl font-bold text-ig-purple">
-  {currentUser?.roomId} Room
-</h1>
+    const handleKey =
+      (event) => {
 
-            <p className="text-sm text-gray-500 truncate">
-              Logged in as
-              <span className="font-semibold text-purple-600 ml-1">
-                {currentUser?.name}
-              </span>
-            </p>
+        switch (
+          event.key
+        ) {
 
-          </div>
+          case "Escape":
 
-        </div>
+            closeModal();
 
-        <div className="flex gap-2 w-full sm:w-auto">
+            break;
 
-          <button
-            onClick={handleClearRoom}
-            disabled={clearing}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-xl border hover:bg-gray-50 transition disabled:opacity-50"
-          >
-            {clearing ? "Clearing..." : "Clear Chat"}
-          </button>
 
-          <button
-            onClick={logout}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition flex items-center justify-center gap-2"
-          >
-            <FiLogOut />
-            Logout
-          </button>
+          case "+":
 
-        </div>
+          case "=":
 
-      </header>
+            setModalScale(
+              (value) =>
+                Math.min(
+                  3,
+                  +(
+                    value +
+                    0.25
+                  ).toFixed(2)
+                )
+            );
 
-      {/* ================= MESSAGES ================= */}
+            break;
 
-      <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 px-3 sm:px-5 py-5">
 
-        {messages.length === 0 ? (
+          case "-":
 
-          <div className="h-full flex items-center justify-center">
+            setModalScale(
+              (value) =>
+                Math.max(
+                  0.5,
+                  +(
+                    value -
+                    0.25
+                  ).toFixed(2)
+                )
+            );
 
-            <div className="text-center">
+            break;
 
-              <div className="text-6xl mb-4">
-                💬
-              </div>
 
-              <h3 className="text-xl font-semibold text-gray-700">
-                No messages yet
-              </h3>
+          default:
+            break;
+        }
+      };
 
-              <p className="text-gray-500 mt-2">
-                Start the conversation!
+
+    window.addEventListener(
+      "keydown",
+      handleKey
+    );
+
+
+    return () =>
+      window.removeEventListener(
+        "keydown",
+        handleKey
+      );
+
+  }, [modalImage]);
+
+
+  // ==================================================
+  // SEND MESSAGE
+  // ==================================================
+
+  const handleSend =
+    () => {
+
+      const trimmed =
+        text.trim();
+
+
+      if (
+        !trimmed &&
+        !file
+      ) {
+        return;
+      }
+
+
+      const pushMessage =
+        (filePayload = null) => {
+
+          const message = {
+
+            id:
+              Date.now() +
+              Math.floor(
+                Math.random() *
+                  1000
+              ),
+
+            senderName:
+              currentUser.name,
+
+            text:
+              trimmed,
+
+            file:
+              filePayload,
+
+            time:
+              new Date().toLocaleTimeString(
+                [],
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              ),
+          };
+
+
+          if (
+            !socketRef.current?.connected
+          ) {
+
+            console.error(
+              "❌ SOCKET NOT CONNECTED"
+            );
+
+
+            alert(
+              "Not connected to server. Please wait a moment and try again."
+            );
+
+
+            return;
+          }
+
+
+          console.log(
+            "📤 Sending message:",
+            message
+          );
+
+
+          socketRef.current.emit(
+            "sendMessage",
+            {
+              room:
+                currentUser.roomId,
+
+              message,
+            }
+          );
+
+
+          localStorage.setItem(
+            "lastMessageTime",
+            Date.now().toString()
+          );
+
+
+          setText("");
+
+          setFile(null);
+
+
+          if (
+            fileInputRef.current
+          ) {
+
+            fileInputRef.current.value =
+              "";
+          }
+        };
+
+
+      // ============================================
+      // FILE
+      // ============================================
+
+      if (file) {
+
+        const reader =
+          new FileReader();
+
+
+        reader.onload =
+          () => {
+
+            const dataUrl =
+              reader.result;
+
+
+            if (
+              file.type.startsWith(
+                "image/"
+              )
+            ) {
+
+              const img =
+                new Image();
+
+
+              img.onload =
+                () => {
+
+                  let width =
+                    img.width;
+
+                  let height =
+                    img.height;
+
+
+                  const MAX_SIZE =
+                    1200;
+
+
+                  if (
+                    width >
+                      MAX_SIZE ||
+                    height >
+                      MAX_SIZE
+                  ) {
+
+                    const ratio =
+                      Math.min(
+                        MAX_SIZE /
+                          width,
+
+                        MAX_SIZE /
+                          height
+                      );
+
+
+                    width =
+                      Math.round(
+                        width *
+                          ratio
+                      );
+
+                    height =
+                      Math.round(
+                        height *
+                          ratio
+                      );
+                  }
+
+
+                  const canvas =
+                    document.createElement(
+                      "canvas"
+                    );
+
+
+                  canvas.width =
+                    width;
+
+                  canvas.height =
+                    height;
+
+
+                  const ctx =
+                    canvas.getContext(
+                      "2d"
+                    );
+
+
+                  ctx.drawImage(
+                    img,
+                    0,
+                    0,
+                    width,
+                    height
+                  );
+
+
+                  const compressedImage =
+                    canvas.toDataURL(
+                      "image/jpeg",
+                      0.8
+                    );
+
+
+                  pushMessage({
+                    name:
+                      file.name,
+
+                    type:
+                      "image/jpeg",
+
+                    dataUrl:
+                      compressedImage,
+                  });
+                };
+
+
+              img.src =
+                dataUrl;
+
+            } else {
+
+              pushMessage({
+                name:
+                  file.name,
+
+                type:
+                  file.type,
+
+                dataUrl:
+                  dataUrl,
+              });
+            }
+          };
+
+
+        reader.readAsDataURL(
+          file
+        );
+
+        return;
+      }
+
+
+      pushMessage();
+    };
+
+
+  // ==================================================
+  // KEYBOARD
+  // ==================================================
+
+  const handleKeyDown =
+    (event) => {
+
+      if (
+        event.key ===
+          "Enter" &&
+        !event.shiftKey
+      ) {
+
+        event.preventDefault();
+
+        handleSend();
+      }
+    };
+
+
+  // ==================================================
+  // REMOVE ATTACHMENT
+  // ==================================================
+
+  const removeAttachment =
+    () => {
+
+      setFile(null);
+
+
+      if (
+        fileInputRef.current
+      ) {
+
+        fileInputRef.current.value =
+          "";
+      }
+    };
+
+
+  // ==================================================
+  // LOGOUT
+  // ==================================================
+
+  const logout =
+    () => {
+
+      dispatch(
+        leaveRoom()
+      );
+
+
+      localStorage.removeItem(
+        "chatUser"
+      );
+
+      localStorage.removeItem(
+        "lastMessageTime"
+      );
+
+
+      onLogout();
+    };
+
+
+  const formatTime =
+    (time) => {
+
+      if (!time) return "";
+
+      return time;
+    };
+
+
+  const isMine =
+    (message) =>
+      message.senderName ===
+      currentUser?.name;
+
+
+  // ==================================================
+  // UI
+  // ==================================================
+
+  return (
+
+    <div className="fixed inset-0 bg-gray-100">
+
+      <div className="w-full h-full bg-white flex flex-col">
+
+
+        {/* HEADER */}
+
+        <header className="flex-shrink-0 bg-white border-b px-4 py-3">
+
+          <div className="flex items-center gap-3 min-w-0">
+
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center">
+
+              <FiUser size={22} />
+
+            </div>
+
+
+            <div className="min-w-0">
+
+              <h1 className="text-2xl font-bold text-purple-600">
+
+                {currentUser?.roomId} Room
+
+              </h1>
+
+
+              <p className="text-sm text-gray-500 truncate">
+
+                Logged in as
+
+                <span className="font-semibold text-purple-600 ml-1">
+
+                  {currentUser?.name}
+
+                </span>
+
               </p>
 
             </div>
 
           </div>
 
-        ) : (
 
-          messages.map((message) => (
+          <div className="flex gap-2 w-full sm:w-auto mt-3">
 
-            <div
-              key={message.id}
-              className={`flex mb-4 ${
-                isMine(message)
-                  ? "justify-end"
-                  : "justify-start"
-              }`}
+            <button
+              onClick={
+                handleClearRoom
+              }
+              disabled={
+                clearing
+              }
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl border hover:bg-gray-50 transition disabled:opacity-50"
             >
 
-              <div
-                className={`
-                  w-fit
-                  max-w-[92%]
-                  sm:max-w-[80%]
-                  lg:max-w-[60%]
-                  rounded-3xl
-                  shadow-sm
-                  px-4
-                  py-3
-                  ${
-  isMine(message)
-    ? "bg-[#DCF8C6] text-black rounded-br-md border border-green-200"
-    : "bg-white text-black rounded-bl-md border border-gray-200"
-}
-                `}
-              >
+              {clearing
+                ? "Clearing..."
+                : "Clear Chat"}
 
-               <div
-  className={`font-bold text-sm ${
-    isMine(message)
-      ? "text-green-700"
-      : "text-blue-700"
-  }`}
->
-                  {message.senderName}
+            </button>
+
+
+            <button
+              onClick={logout}
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition flex items-center justify-center gap-2"
+            >
+
+              <FiLogOut />
+
+              Logout
+
+            </button>
+
+          </div>
+
+        </header>
+
+
+        {/* MESSAGES */}
+
+        <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 px-3 sm:px-5 py-5">
+
+          {messages.length ===
+          0 ? (
+
+            <div className="h-full flex items-center justify-center">
+
+              <div className="text-center">
+
+                <div className="text-6xl mb-4">
+                  💬
                 </div>
 
-                {message.text && (
+                <h3 className="text-xl font-semibold text-gray-700">
+                  No messages yet
+                </h3>
 
-                  <p className="mt-2 text-black whitespace-pre-wrap break-words leading-relaxed">
-
-                    {message.text}
-
-                  </p>
-
-                )}
-{message.file ? (
-  <div className="mt-2">
-    {message.file.type?.startsWith("image/") && (
-      <img
-        src={message.file.dataUrl}
-        alt={message.file.name}
-        className="max-w-full md:max-w-sm rounded-lg cursor-pointer object-contain shadow"
-        onClick={() => openImage(message.file)}
-      />
-    )}
-  </div>
-) : null}
-
-                <div
-                  className="text-xs mt-3 text-right text-gray-500"
-                >
-                  {formatTime(message.time)}
-                </div>
+                <p className="text-gray-500 mt-2">
+                  Start the conversation!
+                </p>
 
               </div>
 
             </div>
 
-          ))
+          ) : (
 
-        )}
+            messages.map(
+              (message) => (
 
-        <div ref={messagesEndRef} />
+                <div
+                  key={
+                    message.id
+                  }
+                  className={`flex mb-4 ${
+                    isMine(message)
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
 
-      </main>
+                  <div
+                    className={`
+                      w-fit
+                      max-w-[92%]
+                      sm:max-w-[80%]
+                      lg:max-w-[60%]
+                      rounded-3xl
+                      shadow-sm
+                      px-4
+                      py-3
+                      ${
+                        isMine(message)
+                          ? "bg-[#DCF8C6] text-black rounded-br-md border border-green-200"
+                          : "bg-white text-black rounded-bl-md border border-gray-200"
+                      }
+                    `}
+                  >
 
-      {/* ================= INPUT ================= */}
+                    <div
+                      className={`font-bold text-sm ${
+                        isMine(message)
+                          ? "text-green-700"
+                          : "text-blue-700"
+                      }`}
+                    >
 
-      <footer className="flex-shrink-0 bg-white border-t p-4">
+                      {message.senderName}
 
-        <div className="flex items-end gap-3 relative">
+                    </div>
 
-          <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
-    <FiImage className="w-5 h-5 text-gray-600" />
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) =>
-                setFile(e.target.files?.[0] || null)
+                    {message.text && (
+
+                      <p className="mt-2 text-black whitespace-pre-wrap break-words leading-relaxed">
+
+                        {message.text}
+
+                      </p>
+
+                    )}
+
+
+                    {message.file && (
+
+                      <div className="mt-2">
+
+                        {message.file.type?.startsWith(
+                          "image/"
+                        ) && (
+
+                          <img
+                            src={
+                              message.file.dataUrl
+                            }
+                            alt={
+                              message.file.name
+                            }
+                            className="max-w-full md:max-w-sm rounded-lg cursor-pointer object-contain shadow"
+                            onClick={() =>
+                              openImage(
+                                message.file
+                              )
+                            }
+                          />
+
+                        )}
+
+                      </div>
+
+                    )}
+
+
+                    <div className="text-xs mt-3 text-right text-gray-500">
+
+                      {formatTime(
+                        message.time
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              )
+            )
+
+          )}
+
+
+          <div
+            ref={
+              messagesEndRef
+            }
+          />
+
+        </main>
+
+
+        {/* INPUT */}
+
+        <footer className="flex-shrink-0 bg-white border-t p-4">
+
+          <div className="flex items-end gap-3 relative">
+
+
+            <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
+
+              <FiImage className="w-5 h-5 text-gray-600" />
+
+
+              <input
+                ref={
+                  fileInputRef
+                }
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) =>
+                  setFile(
+                    e.target.files?.[0] ||
+                      null
+                  )
+                }
+              />
+
+            </label>
+
+
+            <button
+              onClick={
+                toggleEmojiPicker
               }
+              className="w-11 h-11 rounded-xl border hover:bg-gray-100 flex items-center justify-center"
+            >
+
+              <FiSmile size={20} />
+
+            </button>
+
+
+            {showEmojiPicker && (
+
+              <div className="absolute bottom-16 left-0 w-72 max-w-[90vw] bg-white border rounded-2xl shadow-xl p-3 grid grid-cols-5 gap-2 z-30">
+
+                {EMOJIS.map(
+                  (emoji) => (
+
+                    <button
+                      key={
+                        emoji
+                      }
+                      onClick={() =>
+                        addEmoji(
+                          emoji
+                        )
+                      }
+                      className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
+                    >
+
+                      {emoji}
+
+                    </button>
+
+                  )
+                )}
+
+              </div>
+
+            )}
+
+
+            <textarea
+              value={text}
+              onChange={(e) =>
+                setText(
+                  e.target.value
+                )
+              }
+              onKeyDown={
+                handleKeyDown
+              }
+              rows={1}
+              placeholder="Type your message..."
+              className="flex-1 resize-none rounded-2xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 max-h-32 overflow-y-auto"
             />
 
-          </label>
 
-          <button
-            onClick={toggleEmojiPicker}
-            className="w-11 h-11 rounded-xl border hover:bg-gray-100 flex items-center justify-center"
-          >
-            <FiSmile size={20} />
-          </button>
+            <button
+              onClick={
+                handleSend
+              }
+              className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-md transition flex items-center justify-center"
+            >
 
-          {showEmojiPicker && (
+              <FiSend />
 
-            <div className="absolute bottom-16 left-0 w-72 max-w-[90vw] bg-white border rounded-2xl shadow-xl p-3 grid grid-cols-5 gap-2 z-30">
+            </button>
 
-              {EMOJIS.map((emoji) => (
+          </div>
 
-                <button
-                  key={emoji}
-                  onClick={() => addEmoji(emoji)}
-                  className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
-                >
-                  {emoji}
-                </button>
 
-              ))}
+          {file && (
+
+            <div className="mt-3 flex items-center justify-between rounded-xl border bg-gray-50 px-4 py-3">
+
+              <div className="flex items-center gap-3 overflow-hidden">
+
+                <FiImage className="text-purple-600 flex-shrink-0" />
+
+                <div className="truncate text-sm text-gray-700">
+
+                  {file.name}
+
+                </div>
+
+              </div>
+
+
+              <button
+                onClick={
+                  removeAttachment
+                }
+                className="text-red-500 hover:text-red-700 text-sm font-medium"
+              >
+
+                Remove
+
+              </button>
 
             </div>
 
           )}
 
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            placeholder="Type your message..."
-            className="flex-1 resize-none rounded-2xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 max-h-32 overflow-y-auto"
-          />
+        </footer>
 
-          <button
-            onClick={handleSend}
-            className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 shadow-md transition"
-          >
-            <FiSend />
-          </button>
 
-        </div>
-               {file && (
-          <div className="mt-3 flex items-center justify-between rounded-xl border bg-gray-50 px-4 py-3">
+        {/* IMAGE MODAL */}
 
-            <div className="flex items-center gap-3 overflow-hidden">
-
-              <FiImage className="text-purple-600 flex-shrink-0" />
-
-              <div className="truncate text-sm text-gray-700">
-                {file.name}
-              </div>
-
-            </div>
-
-            <button
-              onClick={removeAttachment}
-              className="text-red-500 hover:text-red-700 text-sm font-medium"
-            >
-              Remove
-            </button>
-
-          </div>
-        )}
-
-      </footer>
-
-      {/* ================= IMAGE MODAL ================= */}
-
-      {modalImage && (
-
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={closeModal}
-        >
+        {modalImage && (
 
           <div
-            className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={
+              closeModal
+            }
           >
 
-            <div className="flex items-center justify-between border-b px-5 py-4">
+            <div
+              className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
 
-              <h3 className="font-semibold text-gray-700">
-                Image Preview
-              </h3>
+              <div className="flex items-center justify-between border-b px-5 py-4">
 
-              <button
-                onClick={closeModal}
-                className="text-gray-500 hover:text-red-500 text-xl"
-              >
-                ✕
-              </button>
+                <h3 className="font-semibold text-gray-700">
+                  Image Preview
+                </h3>
 
-            </div>
 
-            <div className="flex justify-center items-center bg-gray-100 overflow-auto p-6">
-
-              <img
-                src={modalImage}
-                alt="Preview"
-                className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
-                style={{
-                  transform: `scale(${modalScale})`,
-                }}
-              />
-
-            </div>
-
-            <div className="border-t px-5 py-4 flex flex-wrap justify-center gap-3">
-
-              <button
-                onClick={() =>
-                  setModalScale((s) =>
-                    Math.max(0.5, +(s - 0.25).toFixed(2))
-                  )
-                }
-                className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
-              >
-                −
-              </button>
-
-              <div className="px-4 py-2 rounded-xl bg-purple-100 text-purple-700 font-medium">
-
-                {Math.round(modalScale * 100)}%
+                <button
+                  onClick={
+                    closeModal
+                  }
+                  className="text-gray-500 hover:text-red-500 text-xl"
+                >
+                  ✕
+                </button>
 
               </div>
 
-              <button
-                onClick={() =>
-                  setModalScale((s) =>
-                    Math.min(3, +(s + 0.25).toFixed(2))
-                  )
-                }
-                className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
-              >
-                +
-              </button>
 
-             
-            </div>
+              <div className="flex justify-center items-center bg-gray-100 overflow-auto p-6">
 
-            <div className="pb-4 text-center text-xs text-gray-400">
-              ESC to close • + / - keys to zoom
+                <img
+                  src={
+                    modalImage
+                  }
+                  alt="Preview"
+                  className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
+                  style={{
+                    transform: `scale(${modalScale})`,
+                  }}
+                />
+
+              </div>
+
+
+              <div className="border-t px-5 py-4 flex flex-wrap justify-center gap-3">
+
+                <button
+                  onClick={() =>
+                    setModalScale(
+                      (s) =>
+                        Math.max(
+                          0.5,
+                          +(
+                            s -
+                            0.25
+                          ).toFixed(2)
+                        )
+                    )
+                  }
+                  className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                >
+                  −
+                </button>
+
+
+                <div className="px-4 py-2 rounded-xl bg-purple-100 text-purple-700 font-medium">
+
+                  {Math.round(
+                    modalScale *
+                      100
+                  )}
+                  %
+
+                </div>
+
+
+                <button
+                  onClick={() =>
+                    setModalScale(
+                      (s) =>
+                        Math.min(
+                          3,
+                          +(
+                            s +
+                            0.25
+                          ).toFixed(2)
+                        )
+                    )
+                  }
+                  className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                >
+                  +
+                </button>
+
+              </div>
+
+
+              <div className="pb-4 text-center text-xs text-gray-400">
+
+                ESC to close • + / - keys to zoom
+
+              </div>
+
             </div>
 
           </div>
 
-        </div>
+        )}
 
-      )}
+      </div>
 
     </div>
-
-  </div>
-);
-
+  );
 }
+
 
 export default Chat;
