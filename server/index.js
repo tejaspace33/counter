@@ -31,14 +31,16 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 pool.query('SELECT NOW()')
   .then(result => {
-    console.log('✅ DATABASE CONNECTED:', result.rows[0]);
+    console.log('✅ PostgreSQL connected:', result.rows[0]);
   })
   .catch(err => {
-    console.error('❌ DATABASE CONNECTION ERROR:', err.message);
+    console.error('❌ PostgreSQL connection error:', err.message);
   });
 
 const initDb = async () => {
@@ -142,33 +144,47 @@ io.on('connection', (socket) => {
     console.log(`socket ${socket.id} left ${room}`);
   });
 
-  socket.on('sendMessage', async ({ room, message }) => {
-    if (!room || !message) return;
+ socket.on('sendMessage', async ({ room, message }) => {
+  if (!room || !message) {
+    console.log('❌ Missing room or message');
+    return;
+  }
 
-    try {
-      // Ensure file is stored as JSON in the JSONB column. stringify if needed.
-      const fileParam = message.file ? JSON.stringify(message.file) : null;
-      await pool.query(
-`INSERT INTO messages
-(message_id, room, senderName, text, file, time)
-VALUES ($1,$2,$3,$4,$5,$6)`,
-[
-message.id,
-room,
-message.senderName,
-message.text,
-fileParam,
-message.time
-]
-);
+  try {
+    const fileParam = message.file
+      ? JSON.stringify(message.file)
+      : null;
 
-      // Emit the message back to clients. Keep the original message object
-      // (which includes the file as an object) so clients can render immediately.
-      io.to(room).emit('message', message);
-    } catch (err) {
-      console.error('Error inserting message:', err);
-    }
-  });
+    console.log('📥 Saving message:', {
+      id: message.id,
+      room,
+      senderName: message.senderName,
+      text: message.text
+    });
+
+    const result = await pool.query(
+      `INSERT INTO messages
+       (message_id, room, senderName, text, file, time)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        message.id,
+        room,
+        message.senderName,
+        message.text || null,
+        fileParam,
+        message.time
+      ]
+    );
+
+    console.log('✅ Message saved to PostgreSQL');
+
+    io.to(room).emit('message', message);
+
+  } catch (err) {
+    console.error('❌ Error inserting message:', err);
+  }
+});
 
   socket.on('disconnect', () => {
     console.log('socket disconnected', socket.id);
