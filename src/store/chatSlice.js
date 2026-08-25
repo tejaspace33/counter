@@ -84,6 +84,14 @@ const chatSlice = createSlice({
       state.messages = action.payload || [];
     },
 
+    clearRoom(state) {
+      state.messages = [];
+
+      if (state.currentUser?.roomId) {
+        localStorage.removeItem(persistKey(state.currentUser.roomId));
+      }
+    },
+
     sendMessage(state, action) {
       const msg = action.payload;
 
@@ -113,6 +121,7 @@ export const {
   joinRoom,
   leaveRoom,
   setMessages,
+  clearRoom,
   sendMessage,
 } = chatSlice.actions;
 
