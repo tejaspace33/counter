@@ -437,64 +437,39 @@ function Chat({ onLogout }) {
   // ==================================================
   // CLEAR ROOM
   // ==================================================
+const handleClearRoom = async () => {
+  if (!currentUser?.roomId) return;
 
-  const handleClearRoom = async () => {
-  if (!currentUser?.roomId) {
-    alert("❌ No room ID found");
-    return;
-  }
+  const confirmed = window.confirm(
+    "Clear this room for everyone?"
+  );
 
-  const room = currentUser.roomId;
+  if (!confirmed) return;
+
+  setClearing(true);
 
   try {
-    const response = await fetch(
-      "https://counter-production-5447.up.railway.app/clear-room",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ room }),
-      }
-    );
-
-    const responseText = await response.text();
-
-    console.log("STATUS:", response.status);
-    console.log("RESPONSE:", responseText);
-
-    if (!response.ok) {
-      alert(
-        `❌ Clear failed\nStatus: ${response.status}\n${responseText}`
-      );
-      return;
+    if (!socketRef.current?.connected) {
+      throw new Error("Socket is not connected to Railway.");
     }
 
-    let data;
-
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      data = {};
-    }
-
-    dispatch(setMessages([]));
-
-    localStorage.removeItem(`chatRoom:${room}`);
-
-    alert(
-      `✅ Room cleared\nDeleted: ${data.deleted ?? "unknown"}`
+    console.log(
+      "🧹 Clearing room through Socket:",
+      currentUser.roomId
     );
+
+    socketRef.current.emit("clearRoom", {
+      room: currentUser.roomId,
+    });
 
   } catch (error) {
-    console.error("CLEAR ROOM ERROR:", error);
-
-    alert(
-      `❌ Request failed\n${error.message}`
-    );
+    console.error("❌ CLEAR ROOM ERROR:", error);
+    alert(error.message || "Unable to clear room.");
+  } finally {
+    setClearing(false);
   }
 };
-
+  
 
   // ==================================================
   // IMAGE MODAL
