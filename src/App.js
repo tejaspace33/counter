@@ -109,6 +109,7 @@ function App() {
     setRoomId("");
     setDisplayName("");
     setError("");
+  };
 
   /* ------------------------------
      Generate Room ID
