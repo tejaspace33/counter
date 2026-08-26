@@ -438,10 +438,6 @@ function Chat({ onLogout }) {
   // CLEAR ROOM
   // ==================================================
 const handleClearRoom = async () => {
-  if (!currentUser?.roomId) return;
-
-<<<<<<< HEAD
- const handleClearRoom = async () => {
   if (!currentUser?.roomId) {
     alert("Room ID is missing.");
     return;
@@ -455,11 +451,6 @@ const handleClearRoom = async () => {
 
   setClearing(true);
 
-  const room = currentUser.roomId.trim().toLowerCase();
-
-  console.log("🧹 Clearing room:", room);
-  console.log("🌐 Backend URL:", socketURL);
-
   try {
     const response = await fetch(
       `${socketURL}/clear-room`,
@@ -469,78 +460,27 @@ const handleClearRoom = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          room: room,
+          room: currentUser.roomId,
         }),
       }
     );
 
-    console.log("📡 Clear response status:", response.status);
-
     const data = await response.json();
 
-    console.log("📡 Clear response:", data);
-
     if (!response.ok) {
-      throw new Error(
-        data?.error || "Unable to clear room"
-      );
+      throw new Error(data.error || "Unable to clear room.");
     }
 
-    // Clear Redux
     dispatch(setMessages([]));
 
-    // IMPORTANT: clear localStorage too
-    localStorage.removeItem(`chatRoom:${room}`);
-
-    console.log(
-      `✅ Room "${room}" cleared successfully`
-    );
-
+    console.log("✅ Room cleared:", data);
   } catch (error) {
-
-    console.error("❌ CLEAR ROOM FAILED:", error);
-
-    alert(
-      `Unable to clear room.\n\n${error.message}`
-    );
-
+    console.error("❌ Clear room error:", error);
+    alert("Unable to clear room.");
   } finally {
     setClearing(false);
   }
 };
-=======
-  const confirmed = window.confirm(
-    "Clear this room for everyone?"
-  );
-
-  if (!confirmed) return;
-
-  setClearing(true);
-
-  try {
-    if (!socketRef.current?.connected) {
-      throw new Error("Socket is not connected to Railway.");
-    }
-
-    console.log(
-      "🧹 Clearing room through Socket:",
-      currentUser.roomId
-    );
-
-    socketRef.current.emit("clearRoom", {
-      room: currentUser.roomId,
-    });
->>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
-
-  } catch (error) {
-    console.error("❌ CLEAR ROOM ERROR:", error);
-    alert(error.message || "Unable to clear room.");
-  } finally {
-    setClearing(false);
-  }
-};
-  
-
   // ==================================================
   // IMAGE MODAL
   // ==================================================

@@ -473,7 +473,6 @@ app.get("/health", async (req, res) => {
 // CLEAR ROOM
 // ======================================================
 
-<<<<<<< HEAD
 app.post("/clear-room", async (req, res) => {
   console.log("=================================");
   console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
@@ -482,12 +481,12 @@ app.post("/clear-room", async (req, res) => {
 app.post('/clear-room', async (req, res) => {
   console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
   console.log("BODY:", req.body);
->>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
+
 
   const { room } = req.body;
 
   if (!room) {
-<<<<<<< HEAD
+
     console.log("❌ No room received");
 
     return res.status(400).json({
@@ -502,14 +501,14 @@ app.post('/clear-room', async (req, res) => {
 
   console.log("🏠 Room to clear:", normalizedRoom);
 
-=======
+
     console.log("❌ ROOM IS MISSING");
     return res.status(400).json({
       error: "room is required"
     });
   }
 
->>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
+
   try {
     console.log("🧹 Deleting room:", room);
 
@@ -534,7 +533,7 @@ app.post('/clear-room', async (req, res) => {
       [room]
     );
 
-<<<<<<< HEAD
+
     console.log(
       "🗑️ Deleted rows:",
       result.rowCount
@@ -561,7 +560,7 @@ app.post('/clear-room', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error.message,
-=======
+
     console.log("✅ DELETE SUCCESS");
     console.log("🗑️ ROWS DELETED:", result.rowCount);
 
@@ -579,7 +578,7 @@ app.post('/clear-room', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: err.message
->>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
+
     });
   }
 });
