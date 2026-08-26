@@ -518,13 +518,13 @@ function Chat({ onLogout }) {
   ========================= */
 
   return (
-    <div className="fixed inset-0 bg-[#e5ddd5]">
+    <div className="fixed inset-0 bg-[#0f172a]">
 
-      <div className="w-full h-full flex flex-col bg-[#efeae2]">
+      <div className="w-full h-full bg-[#111827] flex flex-col">
 
         {/* ================= HEADER ================= */}
 
-        <header className="flex-shrink-0 bg-[#075e54] text-white shadow-md z-20">
+        <header className="flex-shrink-0 bg-[#172033] border-b border-[#293548] px-4 py-3">
 
           <div className="px-3 sm:px-5 py-3 flex items-center justify-between gap-3">
 
@@ -544,7 +544,7 @@ function Chat({ onLogout }) {
 
               <div className="min-w-0">
 
-                <h1 className="text-lg sm:text-xl font-semibold truncate">
+                <h1 className="text-2xl font-bold text-purple-400">
                   {currentUser?.roomId} Room
                 </h1>
 
@@ -603,22 +603,7 @@ function Chat({ onLogout }) {
 
         {/* ================= MESSAGES ================= */}
 
-        <main
-          className="
-            flex-1
-            overflow-y-auto
-            min-h-0
-            px-2
-            sm:px-4
-            py-4
-            sm:py-5
-          "
-          style={{
-            backgroundImage:
-              "radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px)",
-            backgroundSize: "18px 18px",
-          }}
-        >
+        <main className="flex-1 overflow-y-auto min-h-0 bg-[#0f172a] px-3 sm:px-5 py-5">
 
           {messages.length === 0 ? (
 
@@ -634,7 +619,7 @@ function Chat({ onLogout }) {
                   No messages yet
                 </h3>
 
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-400 truncate">
                   Start the conversation!
                 </p>
 
@@ -647,7 +632,8 @@ function Chat({ onLogout }) {
             messages.map((message) => {
 
               const mine =
-                isMine(message);
+                isMine(message)
+
 
               return (
                 <div
@@ -671,7 +657,7 @@ function Chat({ onLogout }) {
                       ${
                         mine
                           ? "bg-[#d9fdd3] rounded-2xl rounded-tr-md"
-                          : "bg-white rounded-2xl rounded-tl-md"
+                          : "bg-[#1e293b] text-white rounded-bl-md border border-[#334155]"
                       }
                     `}
                   >
@@ -1048,7 +1034,7 @@ function Chat({ onLogout }) {
 
               <div className="flex items-center justify-between border-b px-4 py-3">
 
-                <h3 className="font-semibold text-gray-700">
+                className="font-semibold text-purple-400 ml-1"
                   Image Preview
                 </h3>
 
