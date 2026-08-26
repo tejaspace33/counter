@@ -92,25 +92,7 @@ function App() {
               className="space-y-4"
             >
 
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your name
-                </label>
-
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) =>
-                    setName(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-3 rounded-2xl border border-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                />
-
-              </div>
+             
 
               <div>
 
@@ -127,6 +109,26 @@ function App() {
                     )
                   }
                   placeholder="Enter room code"
+                  className="w-full px-4 py-3 rounded-2xl border border-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+
+              </div>
+
+               <div>
+
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Your name
+                </label>
+
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) =>
+                    setName(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Enter your name"
                   className="w-full px-4 py-3 rounded-2xl border border-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
 
