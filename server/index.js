@@ -448,21 +448,45 @@ app.get("/health", async (req, res) => {
 // ======================================================
 
 app.post("/clear-room", async (req, res) => {
+  console.log("=================================");
+  console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
+  console.log("Body:", req.body);
 
   const { room } = req.body;
 
   if (!room) {
+    console.log("❌ No room received");
+
     return res.status(400).json({
+      success: false,
       error: "room is required",
     });
   }
 
-  const normalizedRoom = room
+  const normalizedRoom = String(room)
     .trim()
     .toLowerCase();
 
+  console.log("🏠 Room to clear:", normalizedRoom);
+
   try {
 
+    // Check how many messages exist BEFORE deleting
+    const before = await pool.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM messages
+      WHERE room = $1
+      `,
+      [normalizedRoom]
+    );
+
+    console.log(
+      "📊 Messages before delete:",
+      before.rows[0].count
+    );
+
+    // DELETE
     const result = await pool.query(
       `
       DELETE FROM messages
@@ -471,36 +495,35 @@ app.post("/clear-room", async (req, res) => {
       [normalizedRoom]
     );
 
-
     console.log(
-      `🧹 Cleared room ${normalizedRoom}: ${result.rowCount} messages`
+      "🗑️ Deleted rows:",
+      result.rowCount
     );
 
+    // Notify everyone in the room
+    io.to(normalizedRoom).emit("clearRoom");
 
-    io.to(normalizedRoom).emit(
-      "clearRoom"
-    );
+    console.log("✅ ROOM CLEARED SUCCESSFULLY");
 
-
-    return res.json({
+    return res.status(200).json({
+      success: true,
       room: normalizedRoom,
-      cleared: true,
       deleted: result.rowCount,
     });
 
   } catch (error) {
 
-    console.error(
-      "❌ Error clearing room:",
-      error
-    );
+    console.error("❌ CLEAR ROOM DATABASE ERROR");
+    console.error(error);
+    console.error(error.message);
+    console.error(error.stack);
 
     return res.status(500).json({
-      error: "Unable to clear room",
+      success: false,
+      error: error.message,
     });
   }
 });
-
 
 // ======================================================
 // START SERVER

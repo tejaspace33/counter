@@ -438,102 +438,73 @@ function Chat({ onLogout }) {
   // CLEAR ROOM
   // ==================================================
 
-  const handleClearRoom =
-    async () => {
+ const handleClearRoom = async () => {
+  if (!currentUser?.roomId) {
+    alert("Room ID is missing.");
+    return;
+  }
 
-      if (
-        !currentUser?.roomId
-      ) {
-        return;
+  const confirmed = window.confirm(
+    "Clear this room for everyone?"
+  );
+
+  if (!confirmed) return;
+
+  setClearing(true);
+
+  const room = currentUser.roomId.trim().toLowerCase();
+
+  console.log("🧹 Clearing room:", room);
+  console.log("🌐 Backend URL:", socketURL);
+
+  try {
+    const response = await fetch(
+      `${socketURL}/clear-room`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          room: room,
+        }),
       }
+    );
 
+    console.log("📡 Clear response status:", response.status);
 
-      const confirmed =
-        window.confirm(
-          "Clear this room for everyone?"
-        );
+    const data = await response.json();
 
+    console.log("📡 Clear response:", data);
 
-      if (!confirmed) {
-        return;
-      }
+    if (!response.ok) {
+      throw new Error(
+        data?.error || "Unable to clear room"
+      );
+    }
 
+    // Clear Redux
+    dispatch(setMessages([]));
 
-      setClearing(true);
+    // IMPORTANT: clear localStorage too
+    localStorage.removeItem(`chatRoom:${room}`);
 
+    console.log(
+      `✅ Room "${room}" cleared successfully`
+    );
 
-      try {
+  } catch (error) {
 
-        console.log(
-          "🧹 Clearing room:",
-          currentUser.roomId
-        );
+    console.error("❌ CLEAR ROOM FAILED:", error);
 
+    alert(
+      `Unable to clear room.\n\n${error.message}`
+    );
 
-        const response =
-          await fetch(
-            `${socketURL}/clear-room`,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                room:
-                  currentUser.roomId,
-              }),
-            }
-          );
-
-
-        const data =
-          await response.json();
-
-
-        console.log(
-          "Clear response:",
-          data
-        );
-
-
-        if (!response.ok) {
-
-          throw new Error(
-            data.error ||
-              "Unable to clear room"
-          );
-        }
-
-
-        dispatch(
-          clearRoom()
-        );
-
-
-        console.log(
-          "✅ Room cleared"
-        );
-
-      } catch (error) {
-
-        console.error(
-          "❌ Clear room error:",
-          error
-        );
-
-
-        alert(
-          "Unable to clear room."
-        );
-
-      } finally {
-
-        setClearing(false);
-      }
-    };
+  } finally {
+    setClearing(false);
+  }
+};
 
 
   // ==================================================
