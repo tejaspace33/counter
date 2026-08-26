@@ -5,17 +5,13 @@ import React, {
   useState,
 } from "react";
 
-import {
-  useDispatch,
-  useSelector,
-} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   sendMessage,
   leaveRoom,
   setMessages,
   clearRoom,
-  removeMessage,
 } from "../store/chatSlice";
 
 import {
@@ -28,76 +24,44 @@ import {
 
 import { io } from "socket.io-client";
 
-
 function Chat({ onLogout }) {
-
   const dispatch = useDispatch();
 
+  const currentUser = useSelector(
+    (state) => state.chat.currentUser
+  );
 
-  const currentUser =
-    useSelector(
-      (state) =>
-        state.chat.currentUser
-    );
+  const messages = useSelector(
+    (state) => state.chat.messages
+  );
 
+  const [text, setText] = useState("");
+  const [file, setFile] = useState(null);
 
-  const messages =
-    useSelector(
-      (state) =>
-        state.chat.messages
-    );
+  const [modalImage, setModalImage] = useState(null);
+  const [modalScale, setModalScale] = useState(1);
 
-
-  const [text, setText] =
-    useState("");
-
-
-  const [file, setFile] =
-    useState(null);
-
-
-  const [modalImage, setModalImage] =
-    useState(null);
-
-
-  const [modalScale, setModalScale] =
-    useState(1);
-
-
-  const [clearing, setClearing] =
+  const [clearing, setClearing] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] =
     useState(false);
 
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const socketRef = useRef(null);
 
-  const [
-    showEmojiPicker,
-    setShowEmojiPicker,
-  ] = useState(false);
-
-
-  const messagesEndRef =
-    useRef(null);
-
-
-  const fileInputRef =
-    useRef(null);
-
-
-  const socketRef =
-    useRef(null);
-
-
-  // ==================================================
-  // RAILWAY URL
-  // ==================================================
+  /*
+   * IMPORTANT:
+   * Set this in Netlify Environment Variables:
+   *
+   * REACT_APP_SOCKET_URL
+   *
+   * Value:
+   * https://counter-production-5447.up.railway.app
+   */
 
   const socketURL =
     process.env.REACT_APP_SOCKET_URL ||
-    "https://counter-production-5447.up.railway.app";
-
-
-  // ==================================================
-  // EMOJIS
-  // ==================================================
+    "http://localhost:3001";
 
   const EMOJIS = useMemo(
     () => [
@@ -120,907 +84,637 @@ function Chat({ onLogout }) {
     []
   );
 
-
-  // ==================================================
-  // SCROLL
-  // ==================================================
+  /*
+   * Scroll to newest message
+   */
 
   useEffect(() => {
-
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "end",
     });
-
   }, [messages]);
 
-
-  // ==================================================
-  // AUTO LOGOUT
-  // ==================================================
+  /*
+   * Auto logout after 10 minutes inactivity
+   */
 
   useEffect(() => {
-
     if (!currentUser) return;
 
-
     const checkTimeout = () => {
-
-      const lastActivity =
-        Number(
-          localStorage.getItem(
-            "lastMessageTime"
-          ) || 0
-        );
-
+      const lastActivity = Number(
+        localStorage.getItem(
+          "lastMessageTime"
+        ) || 0
+      );
 
       if (!lastActivity) return;
 
-
       const inactive =
-        Date.now() -
-          lastActivity >=
+        Date.now() - lastActivity >=
         10 * 60 * 1000;
 
-
       if (!inactive) return;
-
 
       alert(
         "Session expired due to inactivity."
       );
 
+      dispatch(leaveRoom());
 
-      dispatch(
-        leaveRoom()
-      );
-
+      localStorage.removeItem("chatUser");
+      localStorage.removeItem("lastMessageTime");
 
       onLogout();
     };
 
-
     checkTimeout();
 
+    const interval = setInterval(
+      checkTimeout,
+      30000
+    );
 
-    const interval =
-      setInterval(
-        checkTimeout,
-        30000
-      );
+    return () => clearInterval(interval);
+  }, [currentUser, dispatch, onLogout]);
 
-
-    return () =>
-      clearInterval(interval);
-
-  }, [
-    currentUser,
-    dispatch,
-    onLogout,
-  ]);
-
-
-  // ==================================================
-  // SOCKET CONNECTION
-  // ==================================================
+  /*
+   * SOCKET CONNECTION
+   */
 
   useEffect(() => {
-
-    if (!currentUser?.roomId) {
-      return;
-    }
-
+    if (!currentUser?.roomId) return;
 
     console.log(
       "🔌 Connecting to:",
       socketURL
     );
 
+    const socket = io(socketURL, {
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      withCredentials: true,
+    });
 
-    const socket = io(
-      socketURL,
-      {
-        transports: [
-          "polling",
-          "websocket",
-        ],
+    socketRef.current = socket;
 
-        reconnection: true,
-
-        reconnectionAttempts: Infinity,
-
-        reconnectionDelay: 1000,
-
-        timeout: 20000,
-      }
-    );
-
-
-    socketRef.current =
-      socket;
-
-
-    // CONNECT
-
-    socket.on(
-      "connect",
-      () => {
-
-        console.log(
-          "✅ CONNECTED TO RAILWAY:",
-          socket.id
-        );
-
-
-        console.log(
-          "🏠 Joining room:",
-          currentUser.roomId
-        );
-
-
-        socket.emit(
-          "join",
-          currentUser.roomId
-        );
-      }
-    );
-
-
-    // HISTORY FROM POSTGRESQL
-
-    socket.on(
-      "history",
-      (history = []) => {
-
-        console.log(
-          "📚 PostgreSQL history:",
-          history.length
-        );
-
-
-        dispatch(
-          setMessages(history)
-        );
-      }
-    );
-
-
-    // NEW MESSAGE
-
-    socket.on(
-      "message",
-      (message) => {
-
-        console.log(
-          "📨 Message received:",
-          message
-        );
-
-
-        dispatch(
-          sendMessage(message)
-        );
-      }
-    );
-
-
-    // CLEAR ROOM
-
-    socket.on(
-      "clearRoom",
-      () => {
-
-        console.log(
-          "🧹 Room cleared by server"
-        );
-
-
-        dispatch(
-          clearRoom()
-        );
-      }
-    );
-
-
-    // DELETE MESSAGE
-
-    socket.on(
-      "messageDeleted",
-      (id) => {
-
-        dispatch(
-          removeMessage(id)
-        );
-      }
-    );
-
-
-    // MESSAGE ERROR
-
-    socket.on(
-      "messageError",
-      (error) => {
-
-        console.error(
-          "❌ Server message error:",
-          error
-        );
-
-        alert(
-          "Message could not be saved to PostgreSQL."
-        );
-      }
-    );
-
-
-    // CONNECTION ERROR
-
-    socket.on(
-      "connect_error",
-      (error) => {
-
-        console.error(
-          "❌ SOCKET ERROR:",
-          error.message
-        );
-      }
-    );
-
-
-    socket.on(
-      "disconnect",
-      (reason) => {
-
-        console.log(
-          "🔴 Socket disconnected:",
-          reason
-        );
-      }
-    );
-
-
-    return () => {
-
+    socket.on("connect", () => {
       console.log(
-        "🔌 Disconnecting socket"
+        "✅ SOCKET CONNECTED:",
+        socket.id
       );
-
 
       socket.emit(
-        "leave",
+        "join",
         currentUser.roomId
       );
+    });
 
+    socket.on("connect_error", (error) => {
+      console.error(
+        "❌ SOCKET ERROR:",
+        error.message
+      );
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log(
+        "🔌 SOCKET DISCONNECTED:",
+        reason
+      );
+    });
+
+    /*
+     * Receive old messages from PostgreSQL
+     */
+
+    socket.on("history", (history = []) => {
+      console.log(
+        "📚 Received history:",
+        history.length
+      );
+
+      dispatch(setMessages(history));
+    });
+
+    /*
+     * Receive new message
+     */
+
+    socket.on("message", (message) => {
+      console.log(
+        "📨 New message:",
+        message
+      );
+
+      dispatch(sendMessage(message));
+    });
+
+    /*
+     * Receive clear-room event
+     */
+
+    socket.on("clearRoom", () => {
+      console.log(
+        "🧹 Room cleared by server"
+      );
+
+      dispatch(clearRoom());
+    });
+
+    return () => {
+      if (socket.connected) {
+        socket.emit(
+          "leave",
+          currentUser.roomId
+        );
+      }
 
       socket.disconnect();
 
-
-      socketRef.current =
-        null;
-
+      socketRef.current = null;
     };
-
   }, [
     currentUser,
     dispatch,
     socketURL,
   ]);
 
+  /*
+   * Emoji
+   */
 
-  // ==================================================
-  // EMOJI
-  // ==================================================
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker(
+      (previous) => !previous
+    );
+  };
 
-  const toggleEmojiPicker =
-    () => {
-
-      setShowEmojiPicker(
-        (prev) => !prev
-      );
-    };
-
-
-  const addEmoji =
-    (emoji) => {
-
-      setText(
-        (prev) =>
-          prev + emoji
-      );
-
-      setShowEmojiPicker(
-        false
-      );
-    };
-
-
-  // ==================================================
-  // CLEAR ROOM
-  // ==================================================
-const handleClearRoom = async () => {
-  if (!currentUser?.roomId) {
-    alert("Room ID is missing.");
-    return;
-  }
-
-  const confirmed = window.confirm(
-    "Clear this room for everyone?"
-  );
-
-  if (!confirmed) return;
-
-  setClearing(true);
-
-  try {
-    const response = await fetch(
-      `${socketURL}/clear-room`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          room: currentUser.roomId,
-        }),
-      }
+  const addEmoji = (emoji) => {
+    setText(
+      (previous) => previous + emoji
     );
 
-    const data = await response.json();
+    setShowEmojiPicker(false);
+  };
 
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to clear room.");
-    }
-
-    dispatch(setMessages([]));
-
-    console.log("✅ Room cleared:", data);
-  } catch (error) {
-    console.error("❌ Clear room error:", error);
-    alert("Unable to clear room.");
-  } finally {
-    setClearing(false);
-  }
-};
-  // ==================================================
-  // IMAGE MODAL
-  // ==================================================
-
-  const openImage =
-    (fileObject) => {
-
-      if (
-        !fileObject?.dataUrl
-      ) {
-        return;
-      }
-
-
-      setModalImage(
-        fileObject.dataUrl
-      );
-
-      setModalScale(1);
-    };
-
-
-  const closeModal =
-    () => {
-
-      setModalImage(null);
-
-      setModalScale(1);
-    };
-
-
-  // ==================================================
-  // IMAGE MODAL KEYBOARD
-  // ==================================================
+  /*
+   * IMAGE MODAL KEYBOARD
+   */
 
   useEffect(() => {
+    if (!modalImage) return;
 
-    if (!modalImage) {
-      return;
-    }
+    const handleKey = (event) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
 
+      if (
+        event.key === "+" ||
+        event.key === "="
+      ) {
+        setModalScale((value) =>
+          Math.min(
+            3,
+            +(value + 0.25).toFixed(2)
+          )
+        );
+      }
 
-    const handleKey =
-      (event) => {
-
-        switch (
-          event.key
-        ) {
-
-          case "Escape":
-
-            closeModal();
-
-            break;
-
-
-          case "+":
-
-          case "=":
-
-            setModalScale(
-              (value) =>
-                Math.min(
-                  3,
-                  +(
-                    value +
-                    0.25
-                  ).toFixed(2)
-                )
-            );
-
-            break;
-
-
-          case "-":
-
-            setModalScale(
-              (value) =>
-                Math.max(
-                  0.5,
-                  +(
-                    value -
-                    0.25
-                  ).toFixed(2)
-                )
-            );
-
-            break;
-
-
-          default:
-            break;
-        }
-      };
-
+      if (event.key === "-") {
+        setModalScale((value) =>
+          Math.max(
+            0.5,
+            +(value - 0.25).toFixed(2)
+          )
+        );
+      }
+    };
 
     window.addEventListener(
       "keydown",
       handleKey
     );
 
-
-    return () =>
+    return () => {
       window.removeEventListener(
         "keydown",
         handleKey
       );
-
+    };
   }, [modalImage]);
 
+  /*
+   * CLEAR ROOM
+   */
 
-  // ==================================================
-  // SEND MESSAGE
-  // ==================================================
+  const handleClearRoom = async () => {
+    if (!currentUser?.roomId) {
+      alert("Room ID is missing.");
+      return;
+    }
 
-  const handleSend =
-    () => {
+    const confirmed = window.confirm(
+      "Clear this room for everyone?"
+    );
 
-      const trimmed =
-        text.trim();
+    if (!confirmed) return;
 
+    setClearing(true);
 
-      if (
-        !trimmed &&
-        !file
-      ) {
-        return;
+    try {
+      console.log(
+        "🧹 Clearing room:",
+        currentUser.roomId
+      );
+
+      const response = await fetch(
+        `${socketURL}/clear-room`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            room: currentUser.roomId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "🧹 Clear room response:",
+        response.status,
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to clear room."
+        );
       }
 
-
-      const pushMessage =
-        (filePayload = null) => {
-
-          const message = {
-
-            id:
-              Date.now() +
-              Math.floor(
-                Math.random() *
-                  1000
-              ),
-
-            senderName:
-              currentUser.name,
-
-            text:
-              trimmed,
-
-            file:
-              filePayload,
-
-            time:
-              new Date().toLocaleTimeString(
-                [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              ),
-          };
-
-
-          if (
-            !socketRef.current?.connected
-          ) {
-
-            console.error(
-              "❌ SOCKET NOT CONNECTED"
-            );
-
-
-            alert(
-              "Not connected to server. Please wait a moment and try again."
-            );
-
-
-            return;
-          }
-
-
-          console.log(
-            "📤 Sending message:",
-            message
-          );
-
-
-          socketRef.current.emit(
-            "sendMessage",
-            {
-              room:
-                currentUser.roomId,
-
-              message,
-            }
-          );
-
-
-          localStorage.setItem(
-            "lastMessageTime",
-            Date.now().toString()
-          );
-
-
-          setText("");
-
-          setFile(null);
-
-
-          if (
-            fileInputRef.current
-          ) {
-
-            fileInputRef.current.value =
-              "";
-          }
-        };
-
-
-      // ============================================
-      // FILE
-      // ============================================
-
-      if (file) {
-
-        const reader =
-          new FileReader();
-
-
-        reader.onload =
-          () => {
-
-            const dataUrl =
-              reader.result;
-
-
-            if (
-              file.type.startsWith(
-                "image/"
-              )
-            ) {
-
-              const img =
-                new Image();
-
-
-              img.onload =
-                () => {
-
-                  let width =
-                    img.width;
-
-                  let height =
-                    img.height;
-
-
-                  const MAX_SIZE =
-                    1200;
-
-
-                  if (
-                    width >
-                      MAX_SIZE ||
-                    height >
-                      MAX_SIZE
-                  ) {
-
-                    const ratio =
-                      Math.min(
-                        MAX_SIZE /
-                          width,
-
-                        MAX_SIZE /
-                          height
-                      );
-
-
-                    width =
-                      Math.round(
-                        width *
-                          ratio
-                      );
-
-                    height =
-                      Math.round(
-                        height *
-                          ratio
-                      );
-                  }
-
-
-                  const canvas =
-                    document.createElement(
-                      "canvas"
-                    );
-
-
-                  canvas.width =
-                    width;
-
-                  canvas.height =
-                    height;
-
-
-                  const ctx =
-                    canvas.getContext(
-                      "2d"
-                    );
-
-
-                  ctx.drawImage(
-                    img,
-                    0,
-                    0,
-                    width,
-                    height
-                  );
-
-
-                  const compressedImage =
-                    canvas.toDataURL(
-                      "image/jpeg",
-                      0.8
-                    );
-
-
-                  pushMessage({
-                    name:
-                      file.name,
-
-                    type:
-                      "image/jpeg",
-
-                    dataUrl:
-                      compressedImage,
-                  });
-                };
-
-
-              img.src =
-                dataUrl;
-
-            } else {
-
-              pushMessage({
-                name:
-                  file.name,
-
-                type:
-                  file.type,
-
-                dataUrl:
-                  dataUrl,
-              });
-            }
-          };
-
-
-        reader.readAsDataURL(
-          file
+      /*
+       * Clear Redux + localStorage
+       */
+
+      dispatch(clearRoom());
+
+      console.log(
+        "✅ Room cleared successfully"
+      );
+    } catch (error) {
+      console.error(
+        "❌ CLEAR ROOM ERROR:",
+        error
+      );
+
+      alert(
+        "Unable to clear room. Check Railway logs."
+      );
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  /*
+   * IMAGE MODAL
+   */
+
+  const openImage = (fileObject) => {
+    if (!fileObject?.dataUrl) return;
+
+    setModalImage(fileObject.dataUrl);
+    setModalScale(1);
+  };
+
+  const closeModal = () => {
+    setModalImage(null);
+    setModalScale(1);
+  };
+
+  /*
+   * SEND MESSAGE
+   */
+
+  const handleSend = () => {
+    const trimmed = text.trim();
+
+    if (!trimmed && !file) return;
+
+    const pushMessage = (
+      filePayload = null
+    ) => {
+      if (
+        !socketRef.current?.connected
+      ) {
+        console.error(
+          "❌ SOCKET NOT CONNECTED"
+        );
+
+        alert(
+          "Not connected to chat server."
         );
 
         return;
       }
 
+      const message = {
+        id:
+          Date.now() +
+          Math.floor(
+            Math.random() * 1000
+          ),
 
-      pushMessage();
-    };
+        senderName:
+          currentUser.name,
 
+        text: trimmed,
 
-  // ==================================================
-  // KEYBOARD
-  // ==================================================
+        file: filePayload,
 
-  const handleKeyDown =
-    (event) => {
+        time: new Date().toLocaleTimeString(
+          [],
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          }
+        ),
+      };
 
-      if (
-        event.key ===
-          "Enter" &&
-        !event.shiftKey
-      ) {
+      console.log(
+        "📤 Sending message:",
+        message
+      );
 
-        event.preventDefault();
+      socketRef.current.emit(
+        "sendMessage",
+        {
+          room: currentUser.roomId,
+          message,
+        }
+      );
 
-        handleSend();
-      }
-    };
+      localStorage.setItem(
+        "lastMessageTime",
+        Date.now().toString()
+      );
 
-
-  // ==================================================
-  // REMOVE ATTACHMENT
-  // ==================================================
-
-  const removeAttachment =
-    () => {
-
+      setText("");
       setFile(null);
 
-
-      if (
-        fileInputRef.current
-      ) {
-
-        fileInputRef.current.value =
-          "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     };
 
+    /*
+     * IMAGE / FILE
+     */
 
-  // ==================================================
-  // LOGOUT
-  // ==================================================
+    if (file) {
+      const reader = new FileReader();
 
-  const logout =
-    () => {
+      reader.onload = () => {
+        const dataUrl = reader.result;
 
-      dispatch(
-        leaveRoom()
-      );
+        /*
+         * IMAGE
+         */
 
+        if (
+          file.type.startsWith(
+            "image/"
+          )
+        ) {
+          const img = new Image();
 
-      localStorage.removeItem(
-        "chatUser"
-      );
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
 
-      localStorage.removeItem(
-        "lastMessageTime"
-      );
+            const MAX_SIZE = 1200;
 
+            if (
+              width > MAX_SIZE ||
+              height > MAX_SIZE
+            ) {
+              const ratio =
+                Math.min(
+                  MAX_SIZE / width,
+                  MAX_SIZE / height
+                );
 
-      onLogout();
-    };
+              width = Math.round(
+                width * ratio
+              );
 
+              height = Math.round(
+                height * ratio
+              );
+            }
 
-  const formatTime =
-    (time) => {
+            const canvas =
+              document.createElement(
+                "canvas"
+              );
 
-      if (!time) return "";
+            canvas.width = width;
+            canvas.height = height;
 
-      return time;
-    };
+            const ctx =
+              canvas.getContext("2d");
 
+            ctx.drawImage(
+              img,
+              0,
+              0,
+              width,
+              height
+            );
 
-  const isMine =
-    (message) =>
-      message.senderName ===
-      currentUser?.name;
+            const compressedImage =
+              canvas.toDataURL(
+                "image/jpeg",
+                0.8
+              );
 
+            pushMessage({
+              name: file.name,
+              type: "image/jpeg",
+              dataUrl:
+                compressedImage,
+            });
+          };
 
-  // ==================================================
-  // UI
-  // ==================================================
+          img.src = dataUrl;
+        } else {
+          /*
+           * Other file
+           */
+
+          pushMessage({
+            name: file.name,
+            type: file.type,
+            dataUrl,
+          });
+        }
+      };
+
+      reader.readAsDataURL(file);
+
+      return;
+    }
+
+    /*
+     * TEXT MESSAGE
+     */
+
+    pushMessage();
+  };
+
+  /*
+   * ENTER TO SEND
+   */
+
+  const handleKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      handleSend();
+    }
+  };
+
+  /*
+   * REMOVE ATTACHMENT
+   */
+
+  const removeAttachment = () => {
+    setFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  /*
+   * LOGOUT
+   */
+
+  const logout = () => {
+    dispatch(leaveRoom());
+
+    localStorage.removeItem(
+      "chatUser"
+    );
+
+    localStorage.removeItem(
+      "lastMessageTime"
+    );
+
+    onLogout();
+  };
+
+  /*
+   * TIME
+   */
+
+  const formatTime = (time) => {
+    if (!time) return "";
+
+    return time;
+  };
+
+  /*
+   * MESSAGE OWNER
+   */
+
+  const isMine = (message) =>
+    message.senderName ===
+    currentUser?.name;
+
+  /*
+   * UI
+   */
 
   return (
-
     <div className="fixed inset-0 bg-gray-100">
-
       <div className="w-full h-full bg-white flex flex-col">
-
 
         {/* HEADER */}
 
         <header className="flex-shrink-0 bg-white border-b px-4 py-3">
 
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
 
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center">
+            <div className="flex items-center gap-3 min-w-0">
 
-              <FiUser size={22} />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center flex-shrink-0">
+                <FiUser size={22} />
+              </div>
 
-            </div>
+              <div className="min-w-0">
 
+                <h1 className="text-2xl font-bold text-purple-600">
+                  {currentUser?.roomId} Room
+                </h1>
 
-            <div className="min-w-0">
+                <p className="text-sm text-gray-500 truncate">
+                  Logged in as
 
-              <h1 className="text-2xl font-bold text-purple-600">
+                  <span className="font-semibold text-purple-600 ml-1">
+                    {currentUser?.name}
+                  </span>
+                </p>
 
-                {currentUser?.roomId} Room
-
-              </h1>
-
-
-              <p className="text-sm text-gray-500 truncate">
-
-                Logged in as
-
-                <span className="font-semibold text-purple-600 ml-1">
-
-                  {currentUser?.name}
-
-                </span>
-
-              </p>
+              </div>
 
             </div>
 
-          </div>
+            <div className="flex gap-2 w-full sm:w-auto">
 
+              <button
+                onClick={
+                  handleClearRoom
+                }
+                disabled={clearing}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl border hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                {clearing
+                  ? "Clearing..."
+                  : "Clear Chat"}
+              </button>
 
-          <div className="flex gap-2 w-full sm:w-auto mt-3">
+              <button
+                onClick={logout}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition flex items-center justify-center gap-2"
+              >
+                <FiLogOut />
+                Logout
+              </button>
 
-            <button
-              onClick={
-                handleClearRoom
-              }
-              disabled={
-                clearing
-              }
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl border hover:bg-gray-50 transition disabled:opacity-50"
-            >
-
-              {clearing
-                ? "Clearing..."
-                : "Clear Chat"}
-
-            </button>
-
-
-            <button
-              onClick={logout}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition flex items-center justify-center gap-2"
-            >
-
-              <FiLogOut />
-
-              Logout
-
-            </button>
+            </div>
 
           </div>
 
         </header>
 
-
         {/* MESSAGES */}
 
         <main className="flex-1 overflow-y-auto min-h-0 bg-gray-50 px-3 sm:px-5 py-5">
 
-          {messages.length ===
-          0 ? (
+          {messages.length === 0 ? (
 
             <div className="h-full flex items-center justify-center">
 
@@ -1048,9 +742,7 @@ const handleClearRoom = async () => {
               (message) => (
 
                 <div
-                  key={
-                    message.id
-                  }
+                  key={message.id}
                   className={`flex mb-4 ${
                     isMine(message)
                       ? "justify-end"
@@ -1083,25 +775,16 @@ const handleClearRoom = async () => {
                           : "text-blue-700"
                       }`}
                     >
-
                       {message.senderName}
-
                     </div>
 
-
                     {message.text && (
-
                       <p className="mt-2 text-black whitespace-pre-wrap break-words leading-relaxed">
-
                         {message.text}
-
                       </p>
-
                     )}
 
-
                     {message.file && (
-
                       <div className="mt-2">
 
                         {message.file.type?.startsWith(
@@ -1126,16 +809,12 @@ const handleClearRoom = async () => {
                         )}
 
                       </div>
-
                     )}
 
-
                     <div className="text-xs mt-3 text-right text-gray-500">
-
                       {formatTime(
                         message.time
                       )}
-
                     </div>
 
                   </div>
@@ -1147,15 +826,11 @@ const handleClearRoom = async () => {
 
           )}
 
-
           <div
-            ref={
-              messagesEndRef
-            }
+            ref={messagesEndRef}
           />
 
         </main>
-
 
         {/* INPUT */}
 
@@ -1163,16 +838,14 @@ const handleClearRoom = async () => {
 
           <div className="flex items-end gap-3 relative">
 
+            {/* IMAGE */}
 
             <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
 
               <FiImage className="w-5 h-5 text-gray-600" />
 
-
               <input
-                ref={
-                  fileInputRef
-                }
+                ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
                 className="hidden"
@@ -1186,6 +859,7 @@ const handleClearRoom = async () => {
 
             </label>
 
+            {/* EMOJI */}
 
             <button
               onClick={
@@ -1193,11 +867,8 @@ const handleClearRoom = async () => {
               }
               className="w-11 h-11 rounded-xl border hover:bg-gray-100 flex items-center justify-center"
             >
-
               <FiSmile size={20} />
-
             </button>
-
 
             {showEmojiPicker && (
 
@@ -1207,9 +878,7 @@ const handleClearRoom = async () => {
                   (emoji) => (
 
                     <button
-                      key={
-                        emoji
-                      }
+                      key={emoji}
                       onClick={() =>
                         addEmoji(
                           emoji
@@ -1217,9 +886,7 @@ const handleClearRoom = async () => {
                       }
                       className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
                     >
-
                       {emoji}
-
                     </button>
 
                   )
@@ -1229,13 +896,12 @@ const handleClearRoom = async () => {
 
             )}
 
+            {/* TEXT */}
 
             <textarea
               value={text}
               onChange={(e) =>
-                setText(
-                  e.target.value
-                )
+                setText(e.target.value)
               }
               onKeyDown={
                 handleKeyDown
@@ -1245,20 +911,18 @@ const handleClearRoom = async () => {
               className="flex-1 resize-none rounded-2xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 max-h-32 overflow-y-auto"
             />
 
+            {/* SEND */}
 
             <button
-              onClick={
-                handleSend
-              }
+              onClick={handleSend}
               className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-md transition flex items-center justify-center"
             >
-
               <FiSend />
-
             </button>
 
           </div>
 
+          {/* ATTACHMENT */}
 
           {file && (
 
@@ -1269,13 +933,10 @@ const handleClearRoom = async () => {
                 <FiImage className="text-purple-600 flex-shrink-0" />
 
                 <div className="truncate text-sm text-gray-700">
-
                   {file.name}
-
                 </div>
 
               </div>
-
 
               <button
                 onClick={
@@ -1283,9 +944,7 @@ const handleClearRoom = async () => {
                 }
                 className="text-red-500 hover:text-red-700 text-sm font-medium"
               >
-
                 Remove
-
               </button>
 
             </div>
@@ -1294,16 +953,13 @@ const handleClearRoom = async () => {
 
         </footer>
 
-
         {/* IMAGE MODAL */}
 
         {modalImage && (
 
           <div
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={
-              closeModal
-            }
+            onClick={closeModal}
           >
 
             <div
@@ -1319,11 +975,8 @@ const handleClearRoom = async () => {
                   Image Preview
                 </h3>
 
-
                 <button
-                  onClick={
-                    closeModal
-                  }
+                  onClick={closeModal}
                   className="text-gray-500 hover:text-red-500 text-xl"
                 >
                   ✕
@@ -1331,13 +984,10 @@ const handleClearRoom = async () => {
 
               </div>
 
-
               <div className="flex justify-center items-center bg-gray-100 overflow-auto p-6">
 
                 <img
-                  src={
-                    modalImage
-                  }
+                  src={modalImage}
                   alt="Preview"
                   className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
                   style={{
@@ -1346,7 +996,6 @@ const handleClearRoom = async () => {
                 />
 
               </div>
-
 
               <div className="border-t px-5 py-4 flex flex-wrap justify-center gap-3">
 
@@ -1357,9 +1006,10 @@ const handleClearRoom = async () => {
                         Math.max(
                           0.5,
                           +(
-                            s -
-                            0.25
-                          ).toFixed(2)
+                            s - 0.25
+                          ).toFixed(
+                            2
+                          )
                         )
                     )
                   }
@@ -1368,17 +1018,12 @@ const handleClearRoom = async () => {
                   −
                 </button>
 
-
                 <div className="px-4 py-2 rounded-xl bg-purple-100 text-purple-700 font-medium">
-
                   {Math.round(
-                    modalScale *
-                      100
+                    modalScale * 100
                   )}
                   %
-
                 </div>
-
 
                 <button
                   onClick={() =>
@@ -1387,9 +1032,10 @@ const handleClearRoom = async () => {
                         Math.min(
                           3,
                           +(
-                            s +
-                            0.25
-                          ).toFixed(2)
+                            s + 0.25
+                          ).toFixed(
+                            2
+                          )
                         )
                     )
                   }
@@ -1400,11 +1046,8 @@ const handleClearRoom = async () => {
 
               </div>
 
-
               <div className="pb-4 text-center text-xs text-gray-400">
-
                 ESC to close • + / - keys to zoom
-
               </div>
 
             </div>
@@ -1414,10 +1057,8 @@ const handleClearRoom = async () => {
         )}
 
       </div>
-
     </div>
   );
 }
-
 
 export default Chat;

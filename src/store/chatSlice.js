@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const USER_KEY = "chatUser";
 
@@ -8,12 +8,18 @@ const loadUser = () => {
 
     if (!user) return null;
 
-    const lastActivity = Number(localStorage.getItem("lastMessageTime") || 0);
+    const lastActivity = Number(
+      localStorage.getItem("lastMessageTime") || 0
+    );
 
     // Logout if inactive for more than 10 minutes
-    if (lastActivity && Date.now() - lastActivity > 10 * 60 * 1000) {
+    if (
+      lastActivity &&
+      Date.now() - lastActivity > 10 * 60 * 1000
+    ) {
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem("lastMessageTime");
+
       return null;
     }
 
@@ -27,43 +33,65 @@ const initialUser = loadUser();
 
 const persistKey = (roomId) => `chatRoom:${roomId}`;
 
+let initialMessages = [];
+
+if (initialUser?.roomId) {
+  try {
+    initialMessages = JSON.parse(
+      localStorage.getItem(
+        persistKey(initialUser.roomId)
+      ) || "[]"
+    );
+  } catch {
+    initialMessages = [];
+  }
+}
+
 const initialState = {
   currentUser: initialUser,
-  messages:
-    initialUser && initialUser.roomId
-      ? JSON.parse(
-          localStorage.getItem(persistKey(initialUser.roomId)) || "[]"
-        )
-      : [],
+  messages: initialMessages,
 };
 
 const chatSlice = createSlice({
   name: "chat",
+
   initialState,
+
   reducers: {
     joinRoom(state, action) {
       const { roomId, name } = action.payload;
-      
-      // Normalize to lowercase for case-insensitive matching
-      const normalizedRoomId = roomId.toLowerCase();
-      const normalizedName = name.toLowerCase();
+
+      const normalizedRoomId =
+        roomId.trim().toLowerCase();
+
+      const normalizedName =
+        name.trim().toLowerCase();
 
       let stored = [];
 
       try {
         stored = JSON.parse(
-          localStorage.getItem(persistKey(normalizedRoomId)) || "[]"
+          localStorage.getItem(
+            persistKey(normalizedRoomId)
+          ) || "[]"
         );
       } catch {
         stored = [];
       }
 
-      state.currentUser = { roomId: normalizedRoomId, name: normalizedName };
+      state.currentUser = {
+        roomId: normalizedRoomId,
+        name: normalizedName,
+      };
+
       state.messages = stored;
 
       localStorage.setItem(
         USER_KEY,
-        JSON.stringify({ roomId: normalizedRoomId, name: normalizedName })
+        JSON.stringify({
+          roomId: normalizedRoomId,
+          name: normalizedName,
+        })
       );
 
       localStorage.setItem(
@@ -88,29 +116,35 @@ const chatSlice = createSlice({
       state.messages = [];
 
       if (state.currentUser?.roomId) {
-        localStorage.removeItem(persistKey(state.currentUser.roomId));
+        localStorage.removeItem(
+          persistKey(state.currentUser.roomId)
+        );
       }
     },
 
     sendMessage(state, action) {
       const msg = action.payload;
 
+      if (!msg) return;
+
       state.messages.push(msg);
 
-      if (state.currentUser) {
+      if (state.currentUser?.roomId) {
         try {
           localStorage.setItem(
             persistKey(state.currentUser.roomId),
             JSON.stringify(state.messages)
           );
 
-          // Reset inactivity timer whenever a message is sent
           localStorage.setItem(
             "lastMessageTime",
             Date.now().toString()
           );
-        } catch (err) {
-          console.warn(err);
+        } catch (error) {
+          console.warn(
+            "Unable to save messages locally:",
+            error
+          );
         }
       }
     },

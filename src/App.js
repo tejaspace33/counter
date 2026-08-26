@@ -1,7 +1,4 @@
-import React, {
-  useState,
-} from "react";
-
+import React, { useState } from "react";
 import {
   useSelector,
   useDispatch,
@@ -14,12 +11,8 @@ import {
 
 import Chat from "./Components/Chat";
 
-
 function App() {
-
-  const dispatch =
-    useDispatch();
-
+  const dispatch = useDispatch();
 
   const currentUser =
     useSelector(
@@ -27,68 +20,45 @@ function App() {
         state.chat.currentUser
     );
 
-
   const [name, setName] =
     useState("");
-
 
   const [roomId, setRoomId] =
     useState("");
 
+  const handleLogout = () => {
+    dispatch(leaveRoom());
 
-  const handleLogout =
-    () => {
+    localStorage.removeItem(
+      "currentUser"
+    );
+  };
 
-      dispatch(
-        leaveRoom()
-      );
+  const handleJoin = (event) => {
+    event.preventDefault();
 
-      localStorage.removeItem(
-        "chatUser"
-      );
+    const trimmedName =
+      name.trim();
 
-      localStorage.removeItem(
-        "lastMessageTime"
-      );
-    };
+    const trimmedRoom =
+      roomId.trim();
 
+    if (
+      !trimmedName ||
+      !trimmedRoom
+    ) {
+      return;
+    }
 
-  const handleJoin =
-    (e) => {
-
-      e.preventDefault();
-
-
-      const trimmedName =
-        name.trim();
-
-
-      const trimmedRoom =
-        roomId.trim();
-
-
-      if (
-        !trimmedName ||
-        !trimmedRoom
-      ) {
-        return;
-      }
-
-
-      dispatch(
-        joinRoom({
-          name:
-            trimmedName,
-
-          roomId:
-            trimmedRoom,
-        })
-      );
-    };
-
+    dispatch(
+      joinRoom({
+        name: trimmedName,
+        roomId: trimmedRoom,
+      })
+    );
+  };
 
   return (
-
     <div className="min-h-screen bg-gradient-to-br from-violet-100 via-white to-pink-100 flex items-center justify-center p-4 sm:p-6">
 
       {currentUser ? (
@@ -111,18 +81,14 @@ function App() {
                 Welcome
               </p>
 
-
               <h1 className="mt-3 text-3xl font-bold text-slate-800">
                 Join the room
               </h1>
 
             </div>
 
-
             <form
-              onSubmit={
-                handleJoin
-              }
+              onSubmit={handleJoin}
               className="space-y-4"
             >
 
@@ -131,7 +97,6 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Your name
                 </label>
-
 
                 <input
                   type="text"
@@ -147,13 +112,11 @@ function App() {
 
               </div>
 
-
               <div>
 
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Room ID
                 </label>
-
 
                 <input
                   type="text"
@@ -168,7 +131,6 @@ function App() {
                 />
 
               </div>
-
 
               <button
                 type="submit"
@@ -188,6 +150,5 @@ function App() {
     </div>
   );
 }
-
 
 export default App;
