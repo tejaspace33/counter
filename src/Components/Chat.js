@@ -663,22 +663,22 @@ function Chat({ onLogout }) {
               <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center flex-shrink-0">
                 <FiUser size={22} />
               </div>
+<div className="min-w-0">
 
-              <div className="min-w-0">
+  {/* Room ID - TOP */}
+  <h1 className="text-2xl font-bold text-purple-700 truncate">
+    {currentUser?.roomId} Room
+  </h1>
 
-                <h1 className="text-2xl font-bold text-purple-600">
-                  {currentUser?.roomId} Room
-                </h1>
+  {/* Name - DOWN */}
+  <p className="text-sm text-gray-500 truncate mt-1">
+    Logged in as
+    <span className="font-semibold text-purple-600 ml-1">
+      {currentUser?.name}
+    </span>
+  </p>
 
-                <p className="text-sm text-gray-500 truncate">
-                  Logged in as
-
-                  <span className="font-semibold text-purple-600 ml-1">
-                    {currentUser?.name}
-                  </span>
-                </p>
-
-              </div>
+</div>
 
             </div>
 
