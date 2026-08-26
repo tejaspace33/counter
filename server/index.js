@@ -19,15 +19,11 @@ const ALLOWED_ORIGINS = [
 // ======================================================
 // EXPRESS CORS
 // ======================================================
-
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Vary", "Origin");
-    res.header("Access-Control-Allow-Credentials", "true");
-  }
+  res.header(
+    "Access-Control-Allow-Origin",
+    "https://counter298.netlify.app"
+  );
 
   res.header(
     "Access-Control-Allow-Methods",
@@ -39,12 +35,18 @@ app.use((req, res, next) => {
     "Content-Type"
   );
 
+  res.header(
+    "Access-Control-Allow-Credentials",
+    "true"
+  );
+
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
 
   next();
 });
+
 
 app.use(express.json());
 
@@ -180,6 +182,30 @@ const normalizeMessage = (row) => {
 // ======================================================
 
 io.on("connection", (socket) => {
+  socket.on("clearRoom", async ({ room }) => {
+  console.log("🧹 CLEAR ROOM SOCKET REQUEST:", room);
+
+  if (!room) {
+    console.log("❌ No room received");
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM messages WHERE room = $1",
+      [room]
+    );
+
+    console.log(
+      `✅ Room ${room} cleared. Deleted ${result.rowCount} messages.`
+    );
+
+    io.to(room).emit("clearRoom");
+
+  } catch (err) {
+    console.error("❌ CLEAR ROOM ERROR:", err);
+  }
+});
   console.log(
     "🟢 Socket connected:",
     socket.id
@@ -447,14 +473,21 @@ app.get("/health", async (req, res) => {
 // CLEAR ROOM
 // ======================================================
 
+<<<<<<< HEAD
 app.post("/clear-room", async (req, res) => {
   console.log("=================================");
   console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
   console.log("Body:", req.body);
+=======
+app.post('/clear-room', async (req, res) => {
+  console.log("🧹 CLEAR ROOM REQUEST RECEIVED");
+  console.log("BODY:", req.body);
+>>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
 
   const { room } = req.body;
 
   if (!room) {
+<<<<<<< HEAD
     console.log("❌ No room received");
 
     return res.status(400).json({
@@ -469,7 +502,16 @@ app.post("/clear-room", async (req, res) => {
 
   console.log("🏠 Room to clear:", normalizedRoom);
 
+=======
+    console.log("❌ ROOM IS MISSING");
+    return res.status(400).json({
+      error: "room is required"
+    });
+  }
+
+>>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
   try {
+    console.log("🧹 Deleting room:", room);
 
     // Check how many messages exist BEFORE deleting
     const before = await pool.query(
@@ -488,13 +530,11 @@ app.post("/clear-room", async (req, res) => {
 
     // DELETE
     const result = await pool.query(
-      `
-      DELETE FROM messages
-      WHERE room = $1
-      `,
-      [normalizedRoom]
+      "DELETE FROM messages WHERE room = $1",
+      [room]
     );
 
+<<<<<<< HEAD
     console.log(
       "🗑️ Deleted rows:",
       result.rowCount
@@ -521,6 +561,25 @@ app.post("/clear-room", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error.message,
+=======
+    console.log("✅ DELETE SUCCESS");
+    console.log("🗑️ ROWS DELETED:", result.rowCount);
+
+    io.to(room).emit("clearRoom");
+
+    return res.status(200).json({
+      success: true,
+      room: room,
+      deleted: result.rowCount
+    });
+
+  } catch (err) {
+    console.error("❌ CLEAR ROOM DATABASE ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message
+>>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
     });
   }
 });

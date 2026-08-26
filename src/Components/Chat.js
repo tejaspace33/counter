@@ -437,7 +437,10 @@ function Chat({ onLogout }) {
   // ==================================================
   // CLEAR ROOM
   // ==================================================
+const handleClearRoom = async () => {
+  if (!currentUser?.roomId) return;
 
+<<<<<<< HEAD
  const handleClearRoom = async () => {
   if (!currentUser?.roomId) {
     alert("Room ID is missing.");
@@ -505,7 +508,38 @@ function Chat({ onLogout }) {
     setClearing(false);
   }
 };
+=======
+  const confirmed = window.confirm(
+    "Clear this room for everyone?"
+  );
 
+  if (!confirmed) return;
+
+  setClearing(true);
+
+  try {
+    if (!socketRef.current?.connected) {
+      throw new Error("Socket is not connected to Railway.");
+    }
+
+    console.log(
+      "🧹 Clearing room through Socket:",
+      currentUser.roomId
+    );
+
+    socketRef.current.emit("clearRoom", {
+      room: currentUser.roomId,
+    });
+>>>>>>> a3a854353c230a6c0393ca7071f77f284c30555f
+
+  } catch (error) {
+    console.error("❌ CLEAR ROOM ERROR:", error);
+    alert(error.message || "Unable to clear room.");
+  } finally {
+    setClearing(false);
+  }
+};
+  
 
   // ==================================================
   // IMAGE MODAL
