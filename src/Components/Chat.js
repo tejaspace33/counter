@@ -1034,7 +1034,7 @@ function Chat({ onLogout }) {
 
               <div className="flex items-center justify-between border-b px-4 py-3">
 
-                className="font-semibold text-purple-400 ml-1"
+                <h3>className="font-semibold text-purple-400 ml-1"
                   Image Preview
                 </h3>
 
