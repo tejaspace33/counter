@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  FiSend,
-  FiImage,
-  FiCamera,
-  FiLogOut,
-  FiUser,
-  FiSmile,
-} from "react-icons/fi";
+
 import {
   sendMessage,
   leaveRoom,
@@ -16,10 +9,10 @@ import {
 import {
   FiSend,
   FiImage,
+  FiCamera,
   FiLogOut,
   FiUser,
   FiSmile,
-  FiCheck,
 } from "react-icons/fi";
 import { io } from "socket.io-client";
 
