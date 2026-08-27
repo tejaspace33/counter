@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
 import {
   sendMessage,
   leaveRoom,
   setMessages,
 } from "../store/chatSlice";
+
 import {
   FiSend,
   FiImage,
@@ -13,7 +13,9 @@ import {
   FiLogOut,
   FiUser,
   FiSmile,
+  FiX,
 } from "react-icons/fi";
+
 import { io } from "socket.io-client";
 
 function Chat({ onLogout }) {
@@ -34,10 +36,12 @@ function Chat({ onLogout }) {
   const [modalScale, setModalScale] = useState(1);
 
   const [clearing, setClearing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] =
+    useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const socketRef = useRef(null);
 
   const socketURL =
@@ -61,6 +65,11 @@ function Chat({ onLogout }) {
       "🙈",
       "🤖",
       "🫶",
+      "🤣",
+      "😊",
+      "👏",
+      "💯",
+      "😇",
     ],
     []
   );
@@ -108,12 +117,16 @@ function Chat({ onLogout }) {
 
       if (!inactive) return;
 
-      alert("Session expired due to inactivity.");
+      alert(
+        "Session expired due to inactivity."
+      );
 
       dispatch(leaveRoom());
 
       localStorage.removeItem("chatUser");
-      localStorage.removeItem("lastMessageTime");
+      localStorage.removeItem(
+        "lastMessageTime"
+      );
 
       onLogout();
     };
@@ -146,7 +159,7 @@ function Chat({ onLogout }) {
 
     socket.on("connect", () => {
       console.log(
-        "✅ CONNECTED TO RAILWAY:",
+        "✅ CONNECTED:",
         socket.id
       );
 
@@ -156,24 +169,50 @@ function Chat({ onLogout }) {
       );
     });
 
-    socket.on("connect_error", (error) => {
-      console.error(
-        "❌ SOCKET ERROR:",
-        error.message
-      );
-    });
+    socket.on(
+      "connect_error",
+      (error) => {
+        console.error(
+          "❌ SOCKET ERROR:",
+          error.message
+        );
+      }
+    );
 
-    socket.on("history", (history = []) => {
-      dispatch(setMessages(history));
-    });
+    socket.on(
+      "history",
+      (history = []) => {
+        dispatch(setMessages(history));
+      }
+    );
 
-    socket.on("message", (message) => {
-      dispatch(sendMessage(message));
-    });
+    socket.on(
+      "message",
+      (message) => {
+        dispatch(sendMessage(message));
+      }
+    );
 
-    socket.on("clearRoom", () => {
-      dispatch(setMessages([]));
-    });
+    socket.on(
+      "clearRoom",
+      () => {
+        dispatch(setMessages([]));
+      }
+    );
+
+    socket.on(
+      "messageDeleted",
+      (messageId) => {
+        dispatch(
+          setMessages(
+            messages.filter(
+              (message) =>
+                message.id !== messageId
+            )
+          )
+        );
+      }
+    );
 
     return () => {
       socket.emit(
@@ -182,6 +221,7 @@ function Chat({ onLogout }) {
       );
 
       socket.disconnect();
+
       socketRef.current = null;
     };
   }, [
@@ -198,32 +238,29 @@ function Chat({ onLogout }) {
     if (!modalImage) return;
 
     const handleKey = (event) => {
-      switch (event.key) {
-        case "Escape":
-          closeModal();
-          break;
+      if (event.key === "Escape") {
+        closeModal();
+      }
 
-        case "+":
-        case "=":
-          setModalScale((value) =>
-            Math.min(
-              3,
-              +(value + 0.25).toFixed(2)
-            )
-          );
-          break;
+      if (
+        event.key === "+" ||
+        event.key === "="
+      ) {
+        setModalScale((value) =>
+          Math.min(
+            3,
+            +(value + 0.25).toFixed(2)
+          )
+        );
+      }
 
-        case "-":
-          setModalScale((value) =>
-            Math.max(
-              0.5,
-              +(value - 0.25).toFixed(2)
-            )
-          );
-          break;
-
-        default:
-          break;
+      if (event.key === "-") {
+        setModalScale((value) =>
+          Math.max(
+            0.5,
+            +(value - 0.25).toFixed(2)
+          )
+        );
       }
     };
 
@@ -244,7 +281,10 @@ function Chat({ onLogout }) {
   ========================= */
 
   const handleClearRoom = async () => {
-    if (!currentUser?.roomId) return;
+    if (!currentUser?.roomId) {
+      alert("Room ID is missing.");
+      return;
+    }
 
     const confirmed = window.confirm(
       "Clear this room for everyone?"
@@ -260,7 +300,8 @@ function Chat({ onLogout }) {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify({
             room: currentUser.roomId,
@@ -275,6 +316,10 @@ function Chat({ onLogout }) {
       }
 
       dispatch(setMessages([]));
+
+      localStorage.removeItem(
+        `chatRoom:${currentUser.roomId}`
+      );
     } catch (error) {
       console.error(
         "Clear room error:",
@@ -308,147 +353,187 @@ function Chat({ onLogout }) {
   ========================= */
 
   const handleSend = () => {
-  const trimmed = text.trim();
+    const trimmed = text.trim();
 
-  if (!trimmed && !file) return;
+    if (!trimmed && !file) return;
 
-  const pushMessage = (filePayload = null) => {
-    const message = {
-      id:
-        Date.now() +
-        Math.floor(Math.random() * 1000),
+    const pushMessage = (
+      filePayload = null
+    ) => {
+      const message = {
+        id:
+          Date.now() +
+          Math.floor(
+            Math.random() * 1000
+          ),
 
-      senderName: currentUser.name,
+        senderName:
+          currentUser.name,
 
-      text: trimmed,
+        text: trimmed,
 
-      file: filePayload,
+        file: filePayload,
 
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-
-    if (socketRef.current?.connected) {
-      console.log(
-        "📤 Sending to Railway:",
-        message
-      );
-
-      socketRef.current.emit("sendMessage", {
-        room: currentUser.roomId,
-        message,
-      });
-
-      localStorage.setItem(
-        "lastMessageTime",
-        Date.now().toString()
-      );
-    } else {
-      console.error(
-        "❌ SOCKET NOT CONNECTED TO RAILWAY"
-      );
-    }
-
-    setText("");
-    setFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // =========================
-  // SEND IMAGE / CAMERA PHOTO
-  // =========================
-
-  if (file) {
-    const actualFile = file?.file || file;
-    const fromCamera = file?.fromCamera === true;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const dataUrl = reader.result;
-
-      if (actualFile.type.startsWith("image/")) {
-        const img = new Image();
-
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-
-          const MAX_SIZE = 1200;
-
-          if (
-            width > MAX_SIZE ||
-            height > MAX_SIZE
-          ) {
-            const ratio = Math.min(
-              MAX_SIZE / width,
-              MAX_SIZE / height
-            );
-
-            width = Math.round(width * ratio);
-            height = Math.round(height * ratio);
+        time: new Date().toLocaleTimeString(
+          [],
+          {
+            hour: "2-digit",
+            minute: "2-digit",
           }
+        ),
+      };
 
-          const canvas =
-            document.createElement("canvas");
+      if (socketRef.current?.connected) {
+        console.log(
+          "📤 Sending:",
+          message
+        );
 
-          canvas.width = width;
-          canvas.height = height;
+        socketRef.current.emit(
+          "sendMessage",
+          {
+            room: currentUser.roomId,
+            message,
+          }
+        );
 
-          const ctx = canvas.getContext("2d");
-
-          ctx.drawImage(
-            img,
-            0,
-            0,
-            width,
-            height
-          );
-
-          const compressedImage =
-            canvas.toDataURL(
-              "image/jpeg",
-              0.8
-            );
-
-          pushMessage({
-            name: actualFile.name,
-            type: "image/jpeg",
-            dataUrl: compressedImage,
-
-            // TRUE only when photo came from camera
-            isSnap: fromCamera,
-          });
-        };
-
-        img.src = dataUrl;
+        localStorage.setItem(
+          "lastMessageTime",
+          Date.now().toString()
+        );
       } else {
-        pushMessage({
-          name: actualFile.name,
-          type: actualFile.type,
-          dataUrl,
-          isSnap: false,
-        });
+        console.error(
+          "❌ SOCKET NOT CONNECTED"
+        );
+
+        alert(
+          "Connection lost. Please try again."
+        );
+
+        return;
+      }
+
+      setText("");
+      setFile(null);
+      setShowEmojiPicker(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = "";
       }
     };
 
-    reader.readAsDataURL(actualFile);
+    /* =========================
+       IMAGE / CAMERA
+    ========================= */
 
-    return;
-  }
+    if (file) {
+      const actualFile =
+        file?.file || file;
 
-  // =========================
-  // SEND TEXT MESSAGE
-  // =========================
+      const fromCamera =
+        file?.fromCamera === true;
 
-  pushMessage();
-};
-    
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const dataUrl = reader.result;
+
+        if (
+          actualFile.type?.startsWith(
+            "image/"
+          )
+        ) {
+          const img = new Image();
+
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            const MAX_SIZE = 1200;
+
+            if (
+              width > MAX_SIZE ||
+              height > MAX_SIZE
+            ) {
+              const ratio = Math.min(
+                MAX_SIZE / width,
+                MAX_SIZE / height
+              );
+
+              width = Math.round(
+                width * ratio
+              );
+
+              height = Math.round(
+                height * ratio
+              );
+            }
+
+            const canvas =
+              document.createElement(
+                "canvas"
+              );
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx =
+              canvas.getContext("2d");
+
+            ctx.drawImage(
+              img,
+              0,
+              0,
+              width,
+              height
+            );
+
+            const compressedImage =
+              canvas.toDataURL(
+                "image/jpeg",
+                0.8
+              );
+
+            pushMessage({
+              name: actualFile.name,
+              type: "image/jpeg",
+              dataUrl:
+                compressedImage,
+
+              // Camera = Snap
+              isSnap: fromCamera,
+            });
+          };
+
+          img.src = dataUrl;
+        } else {
+          pushMessage({
+            name: actualFile.name,
+            type: actualFile.type,
+            dataUrl,
+            isSnap: false,
+          });
+        }
+      };
+
+      reader.readAsDataURL(
+        actualFile
+      );
+
+      return;
+    }
+
+    /* =========================
+       TEXT MESSAGE
+    ========================= */
+
+    pushMessage();
+  };
+
   /* =========================
      ENTER KEY
   ========================= */
@@ -464,7 +549,43 @@ function Chat({ onLogout }) {
   };
 
   /* =========================
-     REMOVE FILE
+     GALLERY
+  ========================= */
+
+  const handleGalleryChange = (
+    event
+  ) => {
+    const selectedFile =
+      event.target.files?.[0];
+
+    if (!selectedFile) return;
+
+    setFile({
+      file: selectedFile,
+      fromCamera: false,
+    });
+  };
+
+  /* =========================
+     CAMERA
+  ========================= */
+
+  const handleCameraChange = (
+    event
+  ) => {
+    const cameraFile =
+      event.target.files?.[0];
+
+    if (!cameraFile) return;
+
+    setFile({
+      file: cameraFile,
+      fromCamera: true,
+    });
+  };
+
+  /* =========================
+     REMOVE ATTACHMENT
   ========================= */
 
   const removeAttachment = () => {
@@ -472,6 +593,10 @@ function Chat({ onLogout }) {
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
     }
   };
 
@@ -494,83 +619,76 @@ function Chat({ onLogout }) {
   };
 
   /* =========================
-     HELPERS
+     TIME
   ========================= */
 
   const formatTime = (time) => {
     if (!time) return "";
+
     return time;
   };
+
+  /* =========================
+     MY MESSAGE
+  ========================= */
 
   const isMine = (message) =>
     message.senderName ===
     currentUser?.name;
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
-    <div className="fixed inset-0 bg-[#e5ddd5]">
+    <div className="fixed inset-0 bg-[#efeae2]">
 
-      <div className="w-full h-full flex flex-col bg-[#efeae2]">
+      <div className="w-full h-full bg-white flex flex-col">
 
         {/* ================= HEADER ================= */}
 
-        <header className="flex-shrink-0 bg-[#075e54] text-white shadow-md z-20">
+        <header className="flex-shrink-0 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 text-white px-4 py-3 shadow-md">
 
-          <div className="px-3 sm:px-5 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
 
             <div className="flex items-center gap-3 min-w-0">
 
-              {/* PROFILE */}
+              <div className="w-11 h-11 rounded-full bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
 
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-
-                <FiUser
-                  size={21}
-                />
+                <FiUser size={21} />
 
               </div>
 
-              {/* ROOM + NAME */}
-
               <div className="min-w-0">
 
-                <h1 className="text-lg sm:text-xl font-semibold truncate">
-                  {currentUser?.roomId} Room
+                {/* ROOM FIRST */}
+
+                <h1 className="text-xl sm:text-2xl font-bold truncate">
+
+                  {currentUser?.roomId}
+
                 </h1>
 
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-white/80">
+                <p className="text-sm text-white/80 truncate">
 
-                  <span className="w-2 h-2 rounded-full bg-green-300" />
+                  Room
 
-                  <span className="truncate">
-                    {currentUser?.name}
-                  </span>
-
-                  <span className="hidden sm:inline">
+                  <span className="mx-1">
                     •
                   </span>
 
-                  <span className="hidden sm:inline">
-                    Connected
-                  </span>
+                  {currentUser?.name}
 
-                </div>
+                </p>
 
               </div>
 
             </div>
 
-            {/* HEADER BUTTONS */}
-
             <div className="flex items-center gap-2 flex-shrink-0">
 
               <button
-                onClick={handleClearRoom}
+                onClick={
+                  handleClearRoom
+                }
                 disabled={clearing}
-                className="px-3 sm:px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs sm:text-sm font-medium transition disabled:opacity-50"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 transition text-sm font-medium disabled:opacity-50"
               >
                 {clearing
                   ? "Clearing..."
@@ -579,10 +697,9 @@ function Chat({ onLogout }) {
 
               <button
                 onClick={logout}
-                className="px-3 sm:px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-medium transition flex items-center gap-1.5"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 transition flex items-center justify-center gap-2 text-sm font-medium"
               >
-                <FiLogOut size={15} />
-
+                <FiLogOut />
                 <span className="hidden sm:inline">
                   Logout
                 </span>
@@ -596,38 +713,23 @@ function Chat({ onLogout }) {
 
         {/* ================= MESSAGES ================= */}
 
-        <main
-          className="
-            flex-1
-            overflow-y-auto
-            min-h-0
-            px-2
-            sm:px-4
-            py-4
-            sm:py-5
-          "
-          style={{
-            backgroundImage:
-              "radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px)",
-            backgroundSize: "18px 18px",
-          }}
-        >
+        <main className="flex-1 overflow-y-auto min-h-0 bg-[#efeae2] px-3 sm:px-5 py-5">
 
           {messages.length === 0 ? (
 
             <div className="h-full flex items-center justify-center">
 
-              <div className="text-center bg-white/70 backdrop-blur-sm rounded-2xl px-7 py-6 shadow-sm">
+              <div className="text-center">
 
-                <div className="text-5xl mb-3">
+                <div className="w-20 h-20 mx-auto rounded-full bg-white shadow flex items-center justify-center text-4xl mb-4">
                   💬
                 </div>
 
-                <h3 className="text-lg font-semibold text-gray-700">
+                <h3 className="text-xl font-semibold text-gray-700">
                   No messages yet
                 </h3>
 
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-gray-500 mt-1">
                   Start the conversation!
                 </p>
 
@@ -637,158 +739,129 @@ function Chat({ onLogout }) {
 
           ) : (
 
-            messages.map((message) => {
+            messages.map(
+              (message) => {
 
-              const mine =
-                isMine(message);
+                const mine =
+                  isMine(message);
 
-              return (
-                <div
-                  key={message.id}
-                  className={`flex mb-2.5 ${
-                    mine
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-
+                return (
                   <div
-                    className={`
-                      relative
-                      max-w-[88%]
-                      sm:max-w-[75%]
-                      lg:max-w-[60%]
-                      px-3
-                      py-2
-                      shadow-sm
-                      ${
-                        mine
-                          ? "bg-[#d9fdd3] rounded-2xl rounded-tr-md"
-                          : "bg-white rounded-2xl rounded-tl-md"
-                      }
-                    `}
+                    key={message.id}
+                    className={`flex mb-2 ${
+                      mine
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
                   >
-
-                    {/* NAME */}
 
                     <div
                       className={`
-                        text-[11px]
-                        font-semibold
-                        leading-tight
-                        mb-0.5
+                        w-fit
+                        max-w-[92%]
+                        sm:max-w-[80%]
+                        lg:max-w-[60%]
+                        px-3.5
+                        py-2
+                        shadow-sm
+                        rounded-2xl
                         ${
                           mine
-                            ? "text-[#128c7e]"
-                            : "text-[#075e54]"
+                            ? "bg-[#d9fdd3] rounded-br-md"
+                            : "bg-white rounded-bl-md"
                         }
                       `}
                     >
-                      {message.senderName}
-                    </div>
 
-                    {/* TEXT + TIME */}
+                      {/* NAME */}
 
-                    {message.text && (
-
-                      <div className="flex items-end gap-2">
-
-                        <p className="text-[14px] sm:text-[15px] text-gray-900 whitespace-pre-wrap break-words leading-[1.3]">
-                          {message.text}
-                        </p>
-
-                        {/* TIME */}
-
-                        <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-
-                          <span className="text-[10px] text-gray-500 whitespace-nowrap">
-                            {formatTime(
-                              message.time
-                            )}
-                          </span>
-
-                          {mine && (
-                            <FiCheck
-                              size={11}
-                              className="text-[#34b7f1]"
-                            />
-                          )}
-
-                        </div>
-
+                      <div
+                        className={`text-xs font-bold mb-0.5 ${
+                          mine
+                            ? "text-green-700"
+                            : "text-purple-700"
+                        }`}
+                      >
+                        {message.senderName}
                       </div>
 
-                    )}
+                      {/* TEXT */}
 
-                    {/* IMAGE */}
+                      {message.text && (
+                        <p className="text-[15px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
+                          {message.text}
+                        </p>
+                      )}
 
-                    {message.file && (
-  <div
-    className={
-      message.text
-        ? "mt-1.5"
-        : "mt-0.5"
-    }
-  >
+                      {/* FILE */}
 
-    {/* 📸 Show Snap heading only for camera photos */}
-    {message.file.isSnap && (
-      <div className="text-sm font-bold text-purple-600 mb-1">
-        📸 Snap
-      </div>
-    )}
+                      {message.file && (
+                        <div
+                          className={
+                            message.text
+                              ? "mt-1"
+                              : "mt-0"
+                          }
+                        >
 
-    {message.file.type?.startsWith("image/") && (
-      <img
-        src={message.file.dataUrl}
-        alt={message.file.name}
-        className="
-          max-w-full
-          sm:max-w-sm
-          max-h-[350px]
-          rounded-xl
-          cursor-pointer
-          object-cover
-          shadow-sm
-        "
-        onClick={() =>
-          openImage(message.file)
-        }
-      />
-    )}
+                          {/* SNAP HEADING */}
 
-  </div>
-)}
+                          {message.file
+                            .isSnap && (
+                            <div className="text-sm font-bold text-purple-600 mb-1">
+                              📸 Snap
+                            </div>
+                          )}
 
-                    {/* TIME FOR IMAGE-ONLY MESSAGE */}
+                          {/* IMAGE */}
 
-                    {!message.text &&
-                      message.file && (
-
-                        <div className="flex justify-end items-center gap-1 mt-1">
-
-                          <span className="text-[10px] text-gray-500">
-                            {formatTime(
-                              message.time
-                            )}
-                          </span>
-
-                          {mine && (
-                            <FiCheck
-                              size={11}
-                              className="text-[#34b7f1]"
+                          {message.file.type?.startsWith(
+                            "image/"
+                          ) && (
+                            <img
+                              src={
+                                message.file
+                                  .dataUrl
+                              }
+                              alt={
+                                message.file
+                                  .name ||
+                                "Image"
+                              }
+                              className="
+                                max-w-full
+                                sm:max-w-sm
+                                max-h-[350px]
+                                rounded-xl
+                                cursor-pointer
+                                object-cover
+                                shadow-sm
+                              "
+                              onClick={() =>
+                                openImage(
+                                  message.file
+                                )
+                              }
                             />
                           )}
 
                         </div>
-
                       )}
 
-                  </div>
+                      {/* TIME */}
 
-                </div>
-              );
-            })
+                      <div className="text-[10px] text-gray-500 text-right mt-1">
+                        {formatTime(
+                          message.time
+                        )}
+                      </div>
+
+                    </div>
+
+                  </div>
+                );
+              }
+            )
 
           )}
 
@@ -796,127 +869,51 @@ function Chat({ onLogout }) {
 
         </main>
 
-        {/* ================= ATTACHMENT PREVIEW ================= */}
-
-        {file && (
-
-          <div className="flex-shrink-0 px-3 pt-2 bg-[#f0f2f5]">
-
-            <div className="flex items-center justify-between rounded-xl bg-white border px-3 py-2 shadow-sm">
-
-              <div className="flex items-center gap-2 min-w-0">
-
-                <FiImage
-                  className="text-[#128c7e] flex-shrink-0"
-                />
-
-                <span className="text-sm text-gray-700 truncate">
-                  {file.name}
-                </span>
-
-              </div>
-
-              <button
-                onClick={removeAttachment}
-                className="text-red-500 hover:text-red-700 text-sm font-medium ml-3"
-              >
-                Remove
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
-
         {/* ================= INPUT ================= */}
 
-        <footer className="flex-shrink-0 bg-[#f0f2f5] border-t border-gray-200 px-2 sm:px-4 py-2">
+        <footer className="flex-shrink-0 bg-white border-t border-gray-200 p-3 sm:p-4">
 
           <div className="relative flex items-end gap-2">
 
-            {/* EMOJI PICKER */}
+            {/* GALLERY */}
 
-            {showEmojiPicker && (
+            <label className="w-11 h-11 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex items-center justify-center flex-shrink-0 transition">
 
-              <div className="
-                absolute
-                bottom-14
-                left-0
-                w-72
-                max-w-[90vw]
-                bg-white
-                border
-                rounded-2xl
-                shadow-xl
-                p-3
-                grid
-                grid-cols-5
-                gap-1
-                z-30
-              ">
-
-                {EMOJIS.map(
-                  (emoji) => (
-
-                    <button
-                      key={emoji}
-                      onClick={() =>
-                        addEmoji(
-                          emoji
-                        )
-                      }
-                      className="
-                        text-2xl
-                        hover:bg-gray-100
-                        rounded-lg
-                        p-2
-                        transition
-                      "
-                    >
-                      {emoji}
-                    </button>
-
-                  )
-                )}
-
-              </div>
-
-            )}
-
-            {/* IMAGE */}
-
-            <label className="
-              w-11
-              h-11
-              rounded-full
-              flex
-              items-center
-              justify-center
-              cursor-pointer
-              text-gray-600
-              hover:bg-gray-200
-              transition
-              flex-shrink-0
-            ">
-
-              <FiImage size={21} />
+              <FiImage
+                className="text-gray-600"
+                size={20}
+              />
 
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
                 className="hidden"
-               onChange={(e) => {
-  const selectedFile = e.target.files?.[0];
+                onChange={
+                  handleGalleryChange
+                }
+              />
 
-  if (selectedFile) {
-    setFile({
-      file: selectedFile,
-      fromCamera: false,
-    });
-  }
-}}
+            </label>
+
+            {/* CAMERA */}
+
+            <label className="w-11 h-11 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex items-center justify-center flex-shrink-0 transition">
+
+              <FiCamera
+                className="text-gray-600"
+                size={20}
+              />
+
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={
+                  handleCameraChange
+                }
               />
 
             </label>
@@ -924,134 +921,125 @@ function Chat({ onLogout }) {
             {/* EMOJI */}
 
             <button
+              type="button"
               onClick={
                 toggleEmojiPicker
               }
-              className="
-                w-11
-                h-11
-                rounded-full
-                flex
-                items-center
-                justify-center
-                text-gray-600
-                hover:bg-gray-200
-                transition
-                flex-shrink-0
-              "
+              className="w-11 h-11 rounded-full border border-gray-300 hover:bg-gray-100 flex items-center justify-center flex-shrink-0 transition"
             >
               <FiSmile
-                size={21}
+                size={20}
+                className="text-gray-600"
               />
             </button>
-            <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
-  <FiCamera className="w-5 h-5 text-gray-600" />
 
-  <input
-    type="file"
-    accept="image/*"
-    capture="environment"
-    className="hidden"
-    onChange={(e) => {
-      const cameraFile = e.target.files?.[0];
+            {/* EMOJI PICKER */}
 
-      if (cameraFile) {
-        setFile({
-          file: cameraFile,
-          fromCamera: true,
-        });
-      }
-    }}
-  />
-</label>
+            {showEmojiPicker && (
+              <div className="absolute bottom-14 left-0 w-72 max-w-[90vw] bg-white border border-gray-200 rounded-2xl shadow-xl p-3 grid grid-cols-5 gap-1 z-30">
+
+                {EMOJIS.map(
+                  (emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() =>
+                        addEmoji(
+                          emoji
+                        )
+                      }
+                      className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
+                    >
+                      {emoji}
+                    </button>
+                  )
+                )}
+
+              </div>
+            )}
+
             {/* TEXT */}
 
             <textarea
               value={text}
               onChange={(e) =>
-                setText(e.target.value)
+                setText(
+                  e.target.value
+                )
               }
               onKeyDown={
                 handleKeyDown
               }
               rows={1}
-              placeholder="Type a message"
-              className="
-                flex-1
-                resize-none
-                rounded-2xl
-                bg-white
-                border
-                border-gray-200
-                px-4
-                py-2.5
-                text-sm
-                sm:text-base
-                focus:outline-none
-                focus:border-[#128c7e]
-                max-h-32
-                overflow-y-auto
-                shadow-sm
-              "
+              placeholder="Type a message..."
+              className="flex-1 resize-none rounded-2xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 max-h-32 overflow-y-auto text-sm sm:text-base"
             />
 
             {/* SEND */}
 
             <button
+              type="button"
               onClick={handleSend}
-              className="
-                w-11
-                h-11
-                rounded-full
-                bg-[#128c7e]
-                hover:bg-[#075e54]
-                text-white
-                flex
-                items-center
-                justify-center
-                shadow-sm
-                transition
-                flex-shrink-0
-              "
+              disabled={
+                !text.trim() && !file
+              }
+              className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white flex items-center justify-center shadow-md transition flex-shrink-0"
             >
-              <FiSend
-                size={18}
-              />
+              <FiSend size={19} />
             </button>
 
           </div>
+
+          {/* ATTACHMENT PREVIEW */}
+
+          {file && (
+            <div className="mt-2 flex items-center justify-between rounded-xl border bg-gray-50 px-3 py-2">
+
+              <div className="flex items-center gap-2 min-w-0">
+
+                {file.fromCamera ? (
+                  <FiCamera className="text-purple-600 flex-shrink-0" />
+                ) : (
+                  <FiImage className="text-purple-600 flex-shrink-0" />
+                )}
+
+                <div className="truncate text-sm text-gray-700">
+
+                  {file.fromCamera
+                    ? "📸 Camera Snap"
+                    : file.file?.name ||
+                      file.name ||
+                      "Attachment"}
+
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  removeAttachment
+                }
+                className="ml-3 w-7 h-7 rounded-full hover:bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0"
+              >
+                <FiX />
+              </button>
+
+            </div>
+          )}
 
         </footer>
 
         {/* ================= IMAGE MODAL ================= */}
 
         {modalImage && (
-
           <div
-            className="
-              fixed
-              inset-0
-              z-50
-              bg-black/80
-              backdrop-blur-sm
-              flex
-              items-center
-              justify-center
-              p-3
-            "
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
             onClick={closeModal}
           >
 
             <div
-              className="
-                bg-white
-                rounded-2xl
-                shadow-2xl
-                max-w-5xl
-                w-full
-                max-h-[94vh]
-                overflow-hidden
-              "
+              className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden"
               onClick={(e) =>
                 e.stopPropagation()
               }
@@ -1066,28 +1054,25 @@ function Chat({ onLogout }) {
                 </h3>
 
                 <button
-                  onClick={closeModal}
-                  className="text-gray-500 hover:text-red-500 text-xl"
+                  type="button"
+                  onClick={
+                    closeModal
+                  }
+                  className="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500 hover:text-red-500 flex items-center justify-center"
                 >
-                  ✕
+                  <FiX />
                 </button>
 
               </div>
 
               {/* IMAGE */}
 
-              <div className="flex justify-center items-center bg-gray-100 overflow-auto p-5">
+              <div className="flex justify-center items-center bg-gray-100 overflow-auto p-4 sm:p-6 max-h-[75vh]">
 
                 <img
                   src={modalImage}
                   alt="Preview"
-                  className="
-                    max-w-full
-                    max-h-[70vh]
-                    object-contain
-                    transition-transform
-                    duration-200
-                  "
+                  className="max-w-full max-h-[65vh] object-contain transition-transform duration-200"
                   style={{
                     transform: `scale(${modalScale})`,
                   }}
@@ -1095,11 +1080,12 @@ function Chat({ onLogout }) {
 
               </div>
 
-              {/* CONTROLS */}
+              {/* ZOOM */}
 
               <div className="border-t px-4 py-3 flex justify-center items-center gap-3">
 
                 <button
+                  type="button"
                   onClick={() =>
                     setModalScale(
                       (s) =>
@@ -1107,16 +1093,18 @@ function Chat({ onLogout }) {
                           0.5,
                           +(
                             s - 0.25
-                          ).toFixed(2)
+                          ).toFixed(
+                            2
+                          )
                         )
                     )
                   }
-                  className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200"
+                  className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
                 >
                   −
                 </button>
 
-                <div className="px-4 py-2 rounded-xl bg-green-50 text-green-700 font-medium text-sm">
+                <div className="px-4 py-2 rounded-xl bg-purple-100 text-purple-700 font-medium">
                   {Math.round(
                     modalScale * 100
                   )}
@@ -1124,6 +1112,7 @@ function Chat({ onLogout }) {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() =>
                     setModalScale(
                       (s) =>
@@ -1131,25 +1120,26 @@ function Chat({ onLogout }) {
                           3,
                           +(
                             s + 0.25
-                          ).toFixed(2)
+                          ).toFixed(
+                            2
+                          )
                         )
                     )
                   }
-                  className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200"
+                  className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
                 >
                   +
                 </button>
 
               </div>
 
-              <div className="pb-3 text-center text-[11px] text-gray-400">
-                ESC to close • + / - to zoom
+              <div className="pb-3 text-center text-xs text-gray-400">
+                ESC to close • + / − to zoom
               </div>
 
             </div>
 
           </div>
-
         )}
 
       </div>
