@@ -107,7 +107,7 @@ const chatSlice = createSlice({
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem("lastMessageTime");
     },
-
+  
     setMessages(state, action) {
       state.messages = action.payload || [];
     },
@@ -148,6 +148,18 @@ const chatSlice = createSlice({
         }
       }
     },
+    removeMessage(state, action) {
+  state.messages = state.messages.filter(
+    (message) => message.id !== action.payload
+  );
+
+  if (state.currentUser?.roomId) {
+    localStorage.setItem(
+      persistKey(state.currentUser.roomId),
+      JSON.stringify(state.messages)
+    );
+  }
+},
   },
 });
 
@@ -157,6 +169,7 @@ export const {
   setMessages,
   clearRoom,
   sendMessage,
+   removeMessage,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

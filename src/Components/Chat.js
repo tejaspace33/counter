@@ -4,8 +4,8 @@ import {
   sendMessage,
   leaveRoom,
   setMessages,
+  removeMessage,
 } from "../store/chatSlice";
-
 import {
   FiSend,
   FiImage,
@@ -200,19 +200,9 @@ function Chat({ onLogout }) {
       }
     );
 
-    socket.on(
-      "messageDeleted",
-      (messageId) => {
-        dispatch(
-          setMessages(
-            messages.filter(
-              (message) =>
-                message.id !== messageId
-            )
-          )
-        );
-      }
-    );
+  socket.on("messageDeleted", (messageId) => {
+  dispatch(removeMessage(messageId));
+});
 
     return () => {
       socket.emit(
