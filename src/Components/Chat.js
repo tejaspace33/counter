@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  FiSend,
+  FiImage,
+  FiCamera,
+  FiLogOut,
+  FiUser,
+  FiSmile,
+} from "react-icons/fi";
+import {
   sendMessage,
   leaveRoom,
   setMessages,
@@ -307,154 +315,240 @@ function Chat({ onLogout }) {
   ========================= */
 
   const handleSend = () => {
-    const trimmed = text.trim();
+  const trimmed = text.trim();
 
-    if (!trimmed && !file) return;
+  if (!trimmed && !file) return;
 
-    const pushMessage = (
-      filePayload = null
-    ) => {
-      const message = {
-        id:
-          Date.now() +
-          Math.floor(
-            Math.random() * 1000
-          ),
+  const pushMessage = (filePayload = null) => {
+    const message = {
+      id:
+        Date.now() +
+        Math.floor(Math.random() * 1000),
 
-        senderName:
-          currentUser.name,
+      senderName: currentUser.name,
 
-        text: trimmed,
+      text: trimmed,
 
-        file: filePayload,
+      file: filePayload,
 
-        time: new Date().toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    if (socketRef.current?.connected) {
+      console.log(
+        "📤 Sending to Railway:",
+        message
+      );
+
+      socketRef.current.emit("sendMessage", {
+        room: currentUser.roomId,
+        message,
+      });
+
+      localStorage.setItem(
+        "lastMessageTime",
+        Date.now().toString()
+      );
+    } else {
+      console.error(
+        "❌ SOCKET NOT CONNECTED TO RAILWAY"
+      );
+    }
+
+    setText("");
+    setFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // =========================
+  // SEND IMAGE / CAMERA PHOTO
+  // =========================
+
+  if (file) {
+    const actualFile = file?.file || file;
+    const fromCamera = file?.fromCamera === true;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const dataUrl = reader.result;
+
+      if (actualFile.type.startsWith("image/")) {
+        const img = new Image();
+
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          const MAX_SIZE = 1200;
+
+          if (
+            width > MAX_SIZE ||
+            height > MAX_SIZE
+          ) {
+            const ratio = Math.min(
+              MAX_SIZE / width,
+              MAX_SIZE / height
+            );
+
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
           }
-        ),
-      };
 
-      if (socketRef.current?.connected) {
-        console.log(
-          "📤 Sending to Railway:",
-          message
-        );
+          const canvas =
+            document.createElement("canvas");
 
-        socketRef.current.emit(
-          "sendMessage",
-          {
-            room: currentUser.roomId,
-            message,
-          }
-        );
+          canvas.width = width;
+          canvas.height = height;
 
-        localStorage.setItem(
-          "lastMessageTime",
-          Date.now().toString()
-        );
+          const ctx = canvas.getContext("2d");
+
+          ctx.drawImage(
+            img,
+            0,
+            0,
+            width,
+            height
+          );
+
+          const compressedImage =
+            canvas.toDataURL(
+              "image/jpeg",
+              0.8
+            );
+
+          pushMessage({
+            name: actualFile.name,
+            type: "image/jpeg",
+            dataUrl: compressedImage,
+
+            // TRUE only when photo came from camera
+            isSnap: fromCamera,
+          });
+        };
+
+        img.src = dataUrl;
       } else {
-        console.error(
-          "❌ SOCKET NOT CONNECTED TO RAILWAY"
-        );
-      }
-
-      setText("");
-      setFile(null);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+        pushMessage({
+          name: actualFile.name,
+          type: actualFile.type,
+          dataUrl,
+          isSnap: false,
+        });
       }
     };
 
+    reader.readAsDataURL(actualFile);
+
+    return;
+  }
+
+  // =========================
+  // SEND TEXT MESSAGE
+  // =========================
+
+  pushMessage();
+};
     /* =========================
        IMAGE
     ========================= */
 
     if (file) {
-      const reader = new FileReader();
+  // Get the actual File object
+  const actualFile = file?.file || file;
 
-      reader.onload = () => {
-        const dataUrl = reader.result;
+  // Check whether this photo came from the camera
+  const fromCamera = file?.fromCamera === true;
 
-        if (file.type.startsWith("image/")) {
-          const img = new Image();
+  const reader = new FileReader();
 
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
+  reader.onload = () => {
+    const dataUrl = reader.result;
 
-            const MAX_SIZE = 1200;
+    if (actualFile.type.startsWith("image/")) {
+      const img = new Image();
 
-            if (
-              width > MAX_SIZE ||
-              height > MAX_SIZE
-            ) {
-              const ratio = Math.min(
-                MAX_SIZE / width,
-                MAX_SIZE / height
-              );
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
 
-              width = Math.round(
-                width * ratio
-              );
+        const MAX_SIZE = 1200;
 
-              height = Math.round(
-                height * ratio
-              );
-            }
+        if (
+          width > MAX_SIZE ||
+          height > MAX_SIZE
+        ) {
+          const ratio = Math.min(
+            MAX_SIZE / width,
+            MAX_SIZE / height
+          );
 
-            const canvas =
-              document.createElement(
-                "canvas"
-              );
+          width = Math.round(
+            width * ratio
+          );
 
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx =
-              canvas.getContext("2d");
-
-            ctx.drawImage(
-              img,
-              0,
-              0,
-              width,
-              height
-            );
-
-            const compressedImage =
-              canvas.toDataURL(
-                "image/jpeg",
-                0.8
-              );
-
-            pushMessage({
-              name: file.name,
-              type: "image/jpeg",
-              dataUrl: compressedImage,
-            });
-          };
-
-          img.src = dataUrl;
-        } else {
-          pushMessage({
-            name: file.name,
-            type: file.type,
-            dataUrl,
-          });
+          height = Math.round(
+            height * ratio
+          );
         }
+
+        const canvas =
+          document.createElement("canvas");
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx =
+          canvas.getContext("2d");
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          width,
+          height
+        );
+
+        const compressedImage =
+          canvas.toDataURL(
+            "image/jpeg",
+            0.8
+          );
+
+        pushMessage({
+          name: actualFile.name,
+          type: "image/jpeg",
+          dataUrl: compressedImage,
+
+          // Camera photo = Snap
+          // Normal gallery photo = normal image
+          isSnap: fromCamera,
+        });
       };
 
-      reader.readAsDataURL(file);
-
-      return;
+      img.src = dataUrl;
+    } else {
+      pushMessage({
+        name: actualFile.name,
+        type: actualFile.type,
+        dataUrl,
+        isSnap: false,
+      });
     }
-
-    pushMessage();
   };
+
+  reader.readAsDataURL(actualFile);
+
+  return;
+}
+
+pushMessage();
 
   /* =========================
      ENTER KEY
@@ -730,45 +824,42 @@ function Chat({ onLogout }) {
                     {/* IMAGE */}
 
                     {message.file && (
-                      <div
-                        className={
-                          message.text
-                            ? "mt-1.5"
-                            : "mt-0.5"
-                        }
-                      >
+  <div
+    className={
+      message.text
+        ? "mt-1.5"
+        : "mt-0.5"
+    }
+  >
 
-                        {message.file.type?.startsWith(
-                          "image/"
-                        ) && (
+    {/* 📸 Show Snap heading only for camera photos */}
+    {message.file.isSnap && (
+      <div className="text-sm font-bold text-purple-600 mb-1">
+        📸 Snap
+      </div>
+    )}
 
-                          <img
-                            src={
-                              message.file.dataUrl
-                            }
-                            alt={
-                              message.file.name
-                            }
-                            className="
-                              max-w-full
-                              sm:max-w-sm
-                              max-h-[350px]
-                              rounded-xl
-                              cursor-pointer
-                              object-cover
-                              shadow-sm
-                            "
-                            onClick={() =>
-                              openImage(
-                                message.file
-                              )
-                            }
-                          />
+    {message.file.type?.startsWith("image/") && (
+      <img
+        src={message.file.dataUrl}
+        alt={message.file.name}
+        className="
+          max-w-full
+          sm:max-w-sm
+          max-h-[350px]
+          rounded-xl
+          cursor-pointer
+          object-cover
+          shadow-sm
+        "
+        onClick={() =>
+          openImage(message.file)
+        }
+      />
+    )}
 
-                        )}
-
-                      </div>
-                    )}
+  </div>
+)}
 
                     {/* TIME FOR IMAGE-ONLY MESSAGE */}
 
@@ -917,12 +1008,16 @@ function Chat({ onLogout }) {
                 type="file"
                 accept="image/*,application/pdf"
                 className="hidden"
-                onChange={(e) =>
-                  setFile(
-                    e.target.files?.[0] ||
-                      null
-                  )
-                }
+               onChange={(e) => {
+  const selectedFile = e.target.files?.[0];
+
+  if (selectedFile) {
+    setFile({
+      file: selectedFile,
+      fromCamera: false,
+    });
+  }
+}}
               />
 
             </label>
@@ -950,7 +1045,26 @@ function Chat({ onLogout }) {
                 size={21}
               />
             </button>
+            <label className="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer shadow-sm transition">
+  <FiCamera className="w-5 h-5 text-gray-600" />
 
+  <input
+    type="file"
+    accept="image/*"
+    capture="environment"
+    className="hidden"
+    onChange={(e) => {
+      const cameraFile = e.target.files?.[0];
+
+      if (cameraFile) {
+        setFile({
+          file: cameraFile,
+          fromCamera: true,
+        });
+      }
+    }}
+  />
+</label>
             {/* TEXT */}
 
             <textarea
