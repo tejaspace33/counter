@@ -69,6 +69,19 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+// Track connected users in each room
+const roomUsers = new Map();
+
+const updateRoomUserCount = (room) => {
+  if (!room) return;
+
+  const count = roomUsers.get(room)?.size || 0;
+
+  io.to(room).emit(
+    "roomUserCount",
+    count
+  );
+};
 
 /*
  * =========================
@@ -219,6 +232,7 @@ const normalizeMessage = (row) => {
  * SOCKET EVENTS
  * =========================
  */
+const socketRooms = new Map();
 
 io.on(
   "connection",
@@ -238,6 +252,23 @@ io.on(
         if (!room) return;
 
         socket.join(room);
+        if (!roomUsers.has(room)) {
+  roomUsers.set(
+    room,
+    new Set()
+  );
+}
+
+roomUsers
+  .get(room)
+  .add(socket.id);
+
+  socketRooms.set(
+  socket.id,
+  room
+);
+
+updateRoomUserCount(room);
 
         console.log(
           `👤 ${socket.id} joined room: ${room}`
@@ -286,18 +317,31 @@ io.on(
      * LEAVE ROOM
      */
 
-    socket.on(
-      "leave",
-      (room) => {
-        if (!room) return;
+  socket.on(
+  "leave",
+  (room) => {
+    if (!room) return;
 
-        socket.leave(room);
+    socket.leave(room);
 
-        console.log(
-          `👋 ${socket.id} left room: ${room}`
-        );
+    const users =
+      roomUsers.get(room);
+
+    if (users) {
+      users.delete(socket.id);
+
+      if (users.size === 0) {
+        roomUsers.delete(room);
+      } else {
+        updateRoomUserCount(room);
       }
+    }
+
+    console.log(
+      `👋 ${socket.id} left room: ${room}`
     );
+  }
+);
 
     /*
      * SEND MESSAGE
@@ -405,16 +449,38 @@ io.on(
      * DISCONNECT
      */
 
-    socket.on(
-      "disconnect",
-      (reason) => {
-        console.log(
-          "🔌 Socket disconnected:",
-          socket.id,
-          reason
-        );
+   socket.on(
+  "disconnect",
+  (reason) => {
+    const room =
+      socketRooms.get(socket.id);
+
+    if (room) {
+      const users =
+        roomUsers.get(room);
+
+      if (users) {
+        users.delete(socket.id);
+
+        if (users.size === 0) {
+          roomUsers.delete(room);
+        } else {
+          updateRoomUserCount(room);
+        }
       }
+
+      socketRooms.delete(
+        socket.id
+      );
+    }
+
+    console.log(
+      "🔌 Socket disconnected:",
+      socket.id,
+      reason
     );
+  }
+);
   }
 );
 

@@ -31,6 +31,7 @@ function Chat({ onLogout }) {
 
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   const [modalImage, setModalImage] = useState(null);
   const [modalScale, setModalScale] = useState(1);
@@ -185,7 +186,12 @@ function Chat({ onLogout }) {
         dispatch(setMessages(history));
       }
     );
-
+   socket.on(
+  "roomUserCount",
+  (count) => {
+    setOnlineCount(count);
+  }
+);
     socket.on(
       "message",
       (message) => {
@@ -666,7 +672,10 @@ function Chat({ onLogout }) {
                   {currentUser?.name}
 
                 </p>
-
+               
+    <span className="ml-2 text-sm font-semibold">
+      {onlineCount}
+    </span>
               </div>
 
             </div>
