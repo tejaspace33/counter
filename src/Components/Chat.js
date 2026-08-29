@@ -371,7 +371,7 @@ function Chat({ onLogout }) {
 
       setText("");
       setFile(null);
-      setShowEmojiPicker(false);
+     
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
