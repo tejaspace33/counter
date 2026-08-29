@@ -378,7 +378,7 @@ function Chat({ onLogout }) {
 
       setText("");
       setFile(null);
-      setShowEmojiPicker(false);
+      
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -478,7 +478,7 @@ function Chat({ onLogout }) {
             name: actualFile.name,
             type: actualFile.type,
             dataUrl,
-            isSnap: false,
+            isSnap: fromCamera,
           });
         }
       };
@@ -630,19 +630,17 @@ function Chat({ onLogout }) {
 
                 <p className="text-sm text-white/80 truncate">
 
-                  Room
-
-                  <span className="mx-1">
-                    •
-                  </span>
-
                   {currentUser?.name}
+
+                    <span className="ml-2 text-sm font-semibold">
+      {onlineCount}
+    </span>
+
+                  
 
                 </p>
                
-    <span className="ml-2 text-sm font-semibold">
-      {onlineCount}
-    </span>
+  
               </div>
 
             </div>
@@ -809,7 +807,26 @@ function Chat({ onLogout }) {
                                 )
                               }
                             />
+                            
                           )}
+                          {/* VIDEO */}
+
+{message.file.type?.startsWith(
+  "video/"
+) && (
+  <video
+    src={message.file.dataUrl}
+    controls
+    playsInline
+    className="
+      max-w-full
+      sm:max-w-sm
+      max-h-[350px]
+      rounded-xl
+      shadow-sm
+    "
+  />
+)}
 
                         </div>
                       )}
@@ -853,7 +870,7 @@ function Chat({ onLogout }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={
                   handleGalleryChange
@@ -874,8 +891,8 @@ function Chat({ onLogout }) {
               <input
                 ref={cameraInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+               accept="image/*,video/*"
+capture="environment"
                 className="hidden"
                 onChange={
                   handleCameraChange
