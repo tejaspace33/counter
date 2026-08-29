@@ -12,7 +12,6 @@ import {
   FiCamera,
   FiLogOut,
   FiUser,
-  FiSmile,
   FiX,
 } from "react-icons/fi";
 
@@ -37,9 +36,7 @@ function Chat({ onLogout }) {
   const [modalScale, setModalScale] = useState(1);
 
   const [clearing, setClearing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] =
-    useState(false);
-
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -49,45 +46,13 @@ function Chat({ onLogout }) {
     process.env.REACT_APP_SOCKET_URL ||
     "http://localhost:3001";
 
-  const EMOJIS = useMemo(
-    () => [
-      "😀",
-      "😂",
-      "😍",
-      "😎",
-      "🙌",
-      "👍",
-      "🎉",
-      "✨",
-      "🔥",
-      "🥳",
-      "💬",
-      "❤️",
-      "🙈",
-      "🤖",
-      "🫶",
-      "🤣",
-      "😊",
-      "👏",
-      "💯",
-      "😇",
-    ],
-    []
-  );
+  
 
   /* =========================
      EMOJI
   ========================= */
 
-  const toggleEmojiPicker = () => {
-    setShowEmojiPicker((prev) => !prev);
-  };
-
-  const addEmoji = (emoji) => {
-    setText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
+  
   /* =========================
      AUTO SCROLL
   ========================= */
@@ -411,7 +376,7 @@ function Chat({ onLogout }) {
 
       setText("");
       setFile(null);
-      setShowEmojiPicker(false);
+      
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -511,7 +476,7 @@ function Chat({ onLogout }) {
             name: actualFile.name,
             type: actualFile.type,
             dataUrl,
-            isSnap: false,
+            isSnap: fromCamera,
           });
         }
       };
@@ -840,7 +805,26 @@ function Chat({ onLogout }) {
                                 )
                               }
                             />
+                            
                           )}
+                          {/* VIDEO */}
+
+{message.file.type?.startsWith(
+  "video/"
+) && (
+  <video
+    src={message.file.dataUrl}
+    controls
+    playsInline
+    className="
+      max-w-full
+      sm:max-w-sm
+      max-h-[350px]
+      rounded-xl
+      shadow-sm
+    "
+  />
+)}
 
                         </div>
                       )}
@@ -884,7 +868,7 @@ function Chat({ onLogout }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={
                   handleGalleryChange
@@ -905,8 +889,8 @@ function Chat({ onLogout }) {
               <input
                 ref={cameraInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+               accept="image/*,video/*"
+capture="environment"
                 className="hidden"
                 onChange={
                   handleCameraChange
@@ -915,46 +899,7 @@ function Chat({ onLogout }) {
 
             </label>
 
-            {/* EMOJI */}
-
-            <button
-              type="button"
-              onClick={
-                toggleEmojiPicker
-              }
-              className="w-11 h-11 rounded-full border border-gray-300 hover:bg-gray-100 flex items-center justify-center flex-shrink-0 transition"
-            >
-              <FiSmile
-                size={20}
-                className="text-gray-600"
-              />
-            </button>
-
-            {/* EMOJI PICKER */}
-
-            {showEmojiPicker && (
-              <div className="absolute bottom-14 left-0 w-72 max-w-[90vw] bg-white border border-gray-200 rounded-2xl shadow-xl p-3 grid grid-cols-5 gap-1 z-30">
-
-                {EMOJIS.map(
-                  (emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() =>
-                        addEmoji(
-                          emoji
-                        )
-                      }
-                      className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
-                    >
-                      {emoji}
-                    </button>
-                  )
-                )}
-
-              </div>
-            )}
-
+          
             {/* TEXT */}
 
             <textarea
