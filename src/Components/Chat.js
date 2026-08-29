@@ -12,7 +12,6 @@ import {
   FiCamera,
   FiLogOut,
   FiUser,
-  FiSmile,
   FiX,
 } from "react-icons/fi";
 
@@ -37,8 +36,7 @@ function Chat({ onLogout }) {
   const [modalScale, setModalScale] = useState(1);
 
   const [clearing, setClearing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] =
-    useState(false);
+  
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -49,45 +47,7 @@ function Chat({ onLogout }) {
     process.env.REACT_APP_SOCKET_URL ||
     "http://localhost:3001";
 
-  const EMOJIS = useMemo(
-    () => [
-      "😀",
-      "😂",
-      "😍",
-      "😎",
-      "🙌",
-      "👍",
-      "🎉",
-      "✨",
-      "🔥",
-      "🥳",
-      "💬",
-      "❤️",
-      "🙈",
-      "🤖",
-      "🫶",
-      "🤣",
-      "😊",
-      "👏",
-      "💯",
-      "😇",
-    ],
-    []
-  );
-
-  /* =========================
-     EMOJI
-  ========================= */
-
-  const toggleEmojiPicker = () => {
-    setShowEmojiPicker((prev) => !prev);
-  };
-
-  const addEmoji = (emoji) => {
-    setText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
+  
   /* =========================
      AUTO SCROLL
   ========================= */
@@ -915,45 +875,8 @@ function Chat({ onLogout }) {
 
             </label>
 
-            {/* EMOJI */}
-
-            <button
-              type="button"
-              onClick={
-                toggleEmojiPicker
-              }
-              className="w-11 h-11 rounded-full border border-gray-300 hover:bg-gray-100 flex items-center justify-center flex-shrink-0 transition"
-            >
-              <FiSmile
-                size={20}
-                className="text-gray-600"
-              />
-            </button>
-
-            {/* EMOJI PICKER */}
-
-            {showEmojiPicker && (
-              <div className="absolute bottom-14 left-0 w-72 max-w-[90vw] bg-white border border-gray-200 rounded-2xl shadow-xl p-3 grid grid-cols-5 gap-1 z-30">
-
-                {EMOJIS.map(
-                  (emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() =>
-                        addEmoji(
-                          emoji
-                        )
-                      }
-                      className="text-2xl hover:bg-gray-100 rounded-lg p-2 transition"
-                    >
-                      {emoji}
-                    </button>
-                  )
-                )}
-
-              </div>
-            )}
+          
+            
 
             {/* TEXT */}
 
@@ -969,7 +892,7 @@ function Chat({ onLogout }) {
               }
               rows={1}
               placeholder="Type a message..."
-              className="flex-1 resize-none rounded-2xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 max-h-32 overflow-y-auto text-sm sm:text-base"
+             className="flex-1 min-w-0 resize-none rounded-2xl border border-gray-300 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base leading-5 sm:leading-6 min-h-[44px] max-h-[100px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
 
             {/* SEND */}
