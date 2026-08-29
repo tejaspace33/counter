@@ -663,19 +663,17 @@ function Chat({ onLogout }) {
 
                 <p className="text-sm text-white/80 truncate">
 
-                  Room
-
-                  <span className="mx-1">
-                    •
-                  </span>
-
                   {currentUser?.name}
+
+                    <span className="ml-2 text-sm font-semibold">
+      {onlineCount}
+    </span>
+
+                  
 
                 </p>
                
-    <span className="ml-2 text-sm font-semibold">
-      {onlineCount}
-    </span>
+  
               </div>
 
             </div>
