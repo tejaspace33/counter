@@ -160,6 +160,24 @@ const chatSlice = createSlice({
     );
   }
 },
+    markMessageSeen(state, action) {
+      const { messageId } = action.payload;
+
+      const message = state.messages.find(
+        (msg) => String(msg.id) === String(messageId)
+      );
+
+      if (message) {
+        message.status = "seen";
+      }
+
+      if (state.currentUser?.roomId) {
+        localStorage.setItem(
+          persistKey(state.currentUser.roomId),
+          JSON.stringify(state.messages)
+        );
+      }
+    },
   },
 });
 
@@ -170,6 +188,7 @@ export const {
   clearRoom,
   sendMessage,
    removeMessage,
+    markMessageSeen,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
