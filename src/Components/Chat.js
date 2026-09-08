@@ -784,8 +784,8 @@ socket.on("messageSeen", ({ messageId }) => {
       }`}
     >
       {message.status === "seen"
-        ? "✓✓ Seen"
-        : "✓ Sent"}
+        ? "✓✓"
+        : "✓"}
     </span>
   )}
 </div>
