@@ -147,10 +147,15 @@ const initDb = async () => {
       )
     `);
 
-    await pool.query(`
-      ALTER TABLE messages
-      ADD COLUMN IF NOT EXISTS message_id TEXT
-    `);
+   await pool.query(`
+  ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS message_id TEXT
+`);
+
+await pool.query(`
+  ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent'
+`);
 
     console.log(
       "✅ PostgreSQL schema initialized"
@@ -210,21 +215,24 @@ const normalizeMessage = (row) => {
     };
   }
 
-  return {
-    id:
-      row.message_id ||
-      row.id,
+ return {
+  id:
+    row.message_id ||
+    row.id,
 
-    senderName,
+  senderName,
 
-    text:
-      row.text || "",
+  text:
+    row.text || "",
 
-    file,
+  file,
 
-    time:
-      row.time,
-  };
+  time:
+    row.time,
+
+  status:
+    row.status || "sent",
+};
 };
 
 /*
@@ -387,23 +395,25 @@ updateRoomUserCount(room);
           await pool.query(
             `
             INSERT INTO messages
-            (
-              message_id,
-              room,
-              senderName,
-              text,
-              file,
-              time
-            )
-            VALUES
-            (
-              $1,
-              $2,
-              $3,
-              $4,
-              $5,
-              $6
-            )
+(
+  message_id,
+  room,
+  senderName,
+  text,
+  file,
+  time,
+  status
+)
+           VALUES
+(
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7
+)
             `,
             [
               String(
@@ -420,6 +430,7 @@ updateRoomUserCount(room);
               fileParam,
 
               message.time,
+              message.status || "sent",
             ]
           );
 
@@ -444,7 +455,50 @@ updateRoomUserCount(room);
         }
       }
     );
+/*
+ * =========================
+ * MESSAGE SEEN
+ * =========================
+ */
 
+socket.on(
+  "messageSeen",
+  async ({ room, messageId }) => {
+    if (!room || !messageId) return;
+
+    try {
+      await pool.query(
+        `
+        UPDATE messages
+        SET status = 'seen'
+        WHERE room = $1
+        AND message_id = $2
+        `,
+        [
+          room,
+          String(messageId),
+        ]
+      );
+
+      // Tell everyone in this room
+      io.to(room).emit(
+        "messageSeen",
+        {
+          messageId: String(messageId),
+        }
+      );
+
+      console.log(
+        `👀 Message seen: ${messageId}`
+      );
+    } catch (error) {
+      console.error(
+        "❌ Error marking message as seen:",
+        error
+      );
+    }
+  }
+);
     /*
      * DISCONNECT
      */

@@ -5,6 +5,7 @@ import {
   leaveRoom,
   setMessages,
   removeMessage,
+  markMessageSeen,
 } from "../store/chatSlice";
 import {
   FiSend,
@@ -140,25 +141,49 @@ function Chat({ onLogout }) {
       }
     );
 
-    socket.on(
-      "history",
-      (history = []) => {
-        dispatch(setMessages(history));
-      }
-    );
+    socket.on("history", (history = []) => {
+  dispatch(setMessages(history));
+
+  // Mark messages from other users as seen
+  history.forEach((message) => {
+    if (
+      message.senderName !== currentUser?.name &&
+      message.id
+    ) {
+      socket.emit("messageSeen", {
+        room: currentUser.roomId,
+        messageId: message.id,
+      });
+    }
+  });
+});
    socket.on(
   "roomUserCount",
   (count) => {
     setOnlineCount(count);
   }
 );
-    socket.on(
-      "message",
-      (message) => {
-        dispatch(sendMessage(message));
-      }
-    );
+   socket.on("message", (message) => {
+  dispatch(sendMessage(message));
 
+  // Tell the server that we have seen this message
+  if (
+    message.senderName !== currentUser?.name &&
+    message.id
+  ) {
+    socket.emit("messageSeen", {
+      room: currentUser.roomId,
+      messageId: message.id,
+    });
+  }
+});
+socket.on("messageSeen", ({ messageId }) => {
+  dispatch(
+    markMessageSeen({
+      messageId,
+    })
+  );
+});
     socket.on(
       "clearRoom",
       () => {
@@ -337,6 +362,7 @@ function Chat({ onLogout }) {
             minute: "2-digit",
           }
         ),
+        status: "sent",
       };
 
       if (socketRef.current?.connected) {
@@ -732,15 +758,37 @@ function Chat({ onLogout }) {
 
                       {/* NAME */}
 
-                      <div
-                        className={`text-xs font-bold mb-0.5 ${
-                          mine
-                            ? "text-green-700"
-                            : "text-purple-700"
-                        }`}
-                      >
-                        {message.senderName}
-                      </div>
+                      {/* NAME + TIME + STATUS */}
+
+<div className="flex items-center gap-2 leading-none mb-1">
+  <span
+    className={`text-[11px] font-bold ${
+      mine
+        ? "text-green-700"
+        : "text-purple-700"
+    }`}
+  >
+    {message.senderName}
+  </span>
+
+  <span className="text-[9px] text-gray-500">
+    {formatTime(message.time)}
+  </span>
+
+  {mine && (
+    <span
+      className={`text-[9px] font-semibold ${
+        message.status === "seen"
+          ? "text-blue-600"
+          : "text-gray-500"
+      }`}
+    >
+      {message.status === "seen"
+        ? "✓✓ Seen"
+        : "✓ Sent"}
+    </span>
+  )}
+</div>
 
                       {/* TEXT */}
 
@@ -805,13 +853,7 @@ function Chat({ onLogout }) {
                         </div>
                       )}
 
-                      {/* TIME */}
-
-                      <div className="text-[10px] text-gray-500 text-right mt-1">
-                        {formatTime(
-                          message.time
-                        )}
-                      </div>
+                     
 
                     </div>
 
