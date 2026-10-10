@@ -621,7 +621,12 @@ socket.on("messageSeen", ({ messageId }) => {
   return (
     <div className="fixed inset-0 bg-[#efeae2]">
 
-      <div className="w-full h-full bg-white flex flex-col">
+      <div className="w-full h-full bg-white flex flex-col" style={{
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.68), rgba(255,255,255,0.72)), url('https://images.unsplash.com/photo-1468327768560-75b778cbb551?auto=format&fit=crop&w=1800&q=80')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat"
+      }}>
 
         {/* ================= HEADER ================= */}
 
@@ -1049,16 +1054,11 @@ socket.on("messageSeen", ({ messageId }) => {
                 <button
                   type="button"
                   onClick={() =>
-                    setModalScale(
-                      (s) =>
-                        Math.max(
-                          0.5,
-                          +(
-                            s - 0.25
-                          ).toFixed(
-                            2
-                          )
-                        )
+                    setModalScale((s) =>
+                      Math.max(
+                        0.5,
+                        +(s - 0.25).toFixed(2)
+                      )
                     )
                   }
                   className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
@@ -1076,16 +1076,11 @@ socket.on("messageSeen", ({ messageId }) => {
                 <button
                   type="button"
                   onClick={() =>
-                    setModalScale(
-                      (s) =>
-                        Math.min(
-                          3,
-                          +(
-                            s + 0.25
-                          ).toFixed(
-                            2
-                          )
-                        )
+                    setModalScale((s) =>
+                      Math.min(
+                        3,
+                        +(s + 0.25).toFixed(2)
+                      )
                     )
                   }
                   className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
