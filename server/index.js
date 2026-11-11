@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 
 const NETLIFY_URL =
-  "https://counter344.netlify.app";
+  "https://counter747.netlify.app";
 
 /*
  * =========================
