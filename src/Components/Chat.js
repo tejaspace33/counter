@@ -622,7 +622,7 @@ socket.on("messageSeen", ({ messageId }) => {
     <div className="fixed inset-0 bg-[#efeae2]">
 
       <div className="w-full h-full bg-white flex flex-col" style={{
-        backgroundImage: "linear-gradient(rgba(255,255,255,0.68), rgba(255,255,255,0.72)), url('https://images.unsplash.com/photo-1468327768560-75b778cbb551?auto=format&fit=crop&w=1800&q=80')",
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.30), rgba(255,255,255,0.45)), url('https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1800&q=80')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat"
@@ -701,7 +701,7 @@ socket.on("messageSeen", ({ messageId }) => {
 
         {/* ================= MESSAGES ================= */}
 
-        <main className="flex-1 overflow-y-auto min-h-0 bg-[#efeae2] px-3 sm:px-5 py-5">
+        <main className="flex-1 overflow-y-auto min-h-0 px-3 sm:px-5 py-5 bg-transparent" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
 
           {messages.length === 0 ? (
 
