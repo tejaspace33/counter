@@ -621,16 +621,24 @@ socket.on("messageSeen", ({ messageId }) => {
   return (
     <div className="fixed inset-0 bg-[#efeae2]">
 
-      <div className="w-full h-full bg-white flex flex-col" style={{
+      <div className="relative w-full h-full flex flex-col" style={{
         backgroundImage: "linear-gradient(rgba(255,255,255,0.30), rgba(255,255,255,0.45)), url('https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1800&q=80')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat"
       }}>
 
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="floating-heart heart-1">♥</span>
+          <span className="floating-heart heart-2">♥</span>
+          <span className="floating-heart heart-3">♥</span>
+          <span className="floating-heart heart-4">♥</span>
+          <span className="floating-heart heart-5">♥</span>
+        </div>
+
         {/* ================= HEADER ================= */}
 
-        <header className="flex-shrink-0 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 text-white px-4 py-3 shadow-md">
+        <header className="relative z-10 flex-shrink-0 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 text-white px-4 py-3 shadow-md">
 
           <div className="flex items-center justify-between gap-3">
 
